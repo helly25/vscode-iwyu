@@ -1,6 +1,6 @@
 {
-    "name": "helly25.iwyu",
-    "displayName": "Include What You Use",
+    "name": "helly25iwyu",
+    "displayName": "IWYU: Include What You Use",
     "description": "This extension allows to use [include-what-you-use](https://github.com/include-what-you-use/include-what-you-use) or short *IWYU* in `VScode`.",
     "version": "0.0.1",
     "publisher": "helly25",
