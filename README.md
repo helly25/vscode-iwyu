@@ -10,7 +10,11 @@ This extension integrates [include-what-you-use](https://github.com/include-what
 
 ## Features
 
-Optimize the include files for the current C/C++ file, press `cmd-shit-P` + `I` + `W` + `Y` + `U`:
+1) The extension automatically detects unused includes and provides diagnostic squiggles which come with a quickfix that invokes IWYU.
+
+![IWYU](https://helly25.com/wp-content/uploads/2023/05/iwyu-animated.gif)
+
+2) Manually optimize the include files for the current C/C++ file by pressing `cmd-shit-P` + `I` + `W` + `Y` + `U`. The extension will then lookup the current editor's file in the compile_commands.json file. If found it will then run the include-what-you-use tool. If that is successful it will then call the fix_includes.py script to apply the changes.
 
 ![IWYU](https://helly25.com/wp-content/uploads/2023/05/iwyu.png)
 
@@ -42,10 +46,11 @@ This extension has the following general settings:
 - `iwyu.compile_commands.json` Path to `compile_commands.json` file (supports `${workspaceFolder}` and
   `${workspaceRoot}`).
 - `iwyu.debug`: Enables additional debug output (e.g. the iwyu output).
-- `iwyu.include-what-you-use`: Path to the `include-what-you-use` executable.
+- `iwyu.diagnostics`: Enables diagnostic squigglies for unused includes.
 - `iwyu.filter_iwu_output`: Regexp expression filter for iwyu output. This will be used as {hrere} in
   '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'.
 - `iwyu.fix_includes.py`: Path to the `fix_includes.py` script.
+- `iwyu.include-what-you-use`: Path to the `include-what-you-use` executable.
 
 The `include-what-you-use` tool can be configured with the following settings (names and description taken from flags):
 
@@ -116,14 +121,6 @@ allows to specify multiple mappings from private to public headers.
 
 ## Known Issues
 
-The extension has only been tested on Linux/Mac. In particular the extension does not understand Windows line endings.
+* The extension has only been tested on Linux/Mac. In particular the extension does not understand Windows line endings.
 
-## Release Notes
-
-### 0.0.1
-
-Initial release.
-
-### 0.0.2
-
-Update image link.
+* When the first C++ files gets active or when the `compile_commands.json` file changes, then IWYU triggers which in turn triggers clangd indexing. That might take a while depending on the computer and source repository. The indexing progress is shown in the status bar.

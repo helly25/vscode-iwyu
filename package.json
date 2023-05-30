@@ -7,7 +7,7 @@
         "Include What You Use",
         "include-what-you-use"
     ],
-    "version": "0.0.2",
+    "version": "0.0.3",
     "publisher": "helly25",
     "license": "Apache-2.0",
     "repository": {
@@ -21,7 +21,9 @@
     "categories": [
         "Other"
     ],
-    "activationEvents": [],
+    "activationEvents": [
+        "onLanguage:cpp"
+    ],
     "main": "./out/extension.js",
     "contributes": {
         "commands": [
@@ -33,45 +35,40 @@
         "configuration": {
             "title": "Include What You Use",
             "properties": {
-                "iwyu.include-what-you-use": {
+                "iwyu.compile_commands": {
                     "type": "string",
-                    "default": "include-what-you-use",
-                    "description": "Path to the `include-what-you-use` executable."
+                    "default": "${workspaceFolder}/compile_commands.json",
+                    "description": "Path to `compile_commands.json` file (supports `${workspaceFolder}` and `${workspaceRoot}`)."
+                },
+                "iwyu.debug": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enables additional debug output (e.g. the iwyu output)."
+                },
+                "iwyu.diagnostics": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enables diagnostic squigglies for unused includes."
+                },
+                "iwyu.filter_iwyu_output": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Regexp expression filter for iwyu output. This will be used as {hrere} in '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'."
                 },
                 "iwyu.fix_includes.py": {
                     "type": "string",
                     "default": "fix_includes.py",
                     "description": "Path to the `fix_includes.py` executable."
                 },
-                "iwyu.compile_commands": {
+                "iwyu.include-what-you-use": {
                     "type": "string",
-                    "default": "${workspaceFolder}/compile_commands.json",
-                    "description": "Path to `compile_commands.json` file (supports `${workspaceFolder}` and `${workspaceRoot}`)."
+                    "default": "include-what-you-use",
+                    "description": "Path to the `include-what-you-use` executable."
                 },
-                "iwyu.iwyu.mapping_file": {
+                "iwyu.iwyu.additional_params": {
                     "type": "string",
                     "default": "",
-                    "description": "Mapping file to use if any."
-                },
-                "iwyu.iwyu.transitive_includes_only": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Do not suggest that a file add foo.h unless foo.h is already visible in the file's transitive includes."
-                },
-                "iwyu.iwyu.max_line_length": {
-                    "type": "integer",
-                    "default": 80,
-                    "description": "Maximum line length for includes.Note that this only affects comments and alignment thereof, the maximum line length can still be exceeded with long file names"
-                },
-                "iwyu.iwyu.no_fwd_decls": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Do not use forward declarations."
-                },
-                "iwyu.iwyu.no_default_mappings": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Do not add iwyu's default mappings."
+                    "description": "Additional parameters you wish to pass to iwyu."
                 },
                 "iwyu.iwyu.keep": {
                     "type": [
@@ -80,25 +77,35 @@
                     "default": [],
                     "description": "A glob that tells iwyu to always keep these includes."
                 },
-                "iwyu.iwyu.additional_params": {
+                "iwyu.iwyu.mapping_file": {
                     "type": "string",
                     "default": "",
-                    "description": "Additional parameters you wish to pass to iwyu."
+                    "description": "Mapping file to use if any."
+                },
+                "iwyu.iwyu.max_line_length": {
+                    "type": "integer",
+                    "default": 80,
+                    "description": "Maximum line length for includes.Note that this only affects comments and alignment thereof, the maximum line length can still be exceeded with long file names"
+                },
+                "iwyu.iwyu.no_default_mappings": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Do not add iwyu's default mappings."
+                },
+                "iwyu.iwyu.no_fwd_decls": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Do not use forward declarations."
+                },
+                "iwyu.iwyu.transitive_includes_only": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Do not suggest that a file add foo.h unless foo.h is already visible in the file's transitive includes."
                 },
                 "iwyu.fix.comments": {
                     "type": "boolean",
                     "default": true,
                     "description": "Put comments after the #include lines."
-                },
-                "iwyu.fix.safe": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Do not remove unused #includes/fwd-declares from header files; just add new ones."
-                },
-                "iwyu.fix.reorder": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Re-order lines relative to other similar lines (e.g. headers relative to other headers)."
                 },
                 "iwyu.fix.ignore_re": {
                     "type": "string",
@@ -110,15 +117,15 @@
                     "default": "",
                     "description": "Skip editing any file whose name does NOT match this regular expression."
                 },
-                "iwyu.filter_iwyu_output": {
-                    "type": "string",
-                    "default": "",
-                    "description": "Regexp expression filter for iwyu output. This will be used as {hrere} in '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'."
-                },
-                "iwyu.debug": {
+                "iwyu.fix.reorder": {
                     "type": "boolean",
-                    "default": false,
-                    "description": "Enables additional debug output (e.g. the iwyu output)."
+                    "default": true,
+                    "description": "Re-order lines relative to other similar lines (e.g. headers relative to other headers)."
+                },
+                "iwyu.fix.safe": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Do not remove unused #includes/fwd-declares from header files; just add new ones."
                 }
             }
         }

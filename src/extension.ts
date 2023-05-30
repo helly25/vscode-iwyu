@@ -19,6 +19,9 @@ import * as path from 'path';
 import * as util from 'util';
 import * as vscode from 'vscode';
 
+const IWYU_COMMAND = "iwyu.run";
+const IWYU_DIAGNISTIC = "iwyu";
+
 type CompileCommand = {
     file: string;
     command: string;
@@ -120,6 +123,25 @@ class ConfigData {
         this.compileCommandsData = this.parseCompileCommands();
     }
 
+    getCompileCommand(fname: string): CompileCommand | null {
+        if (!path.isAbsolute(fname)) {
+            fname = path.resolve(this.workspacefolder, fname);
+        }
+        if (!this.compileCommandsData.compileCommands.hasOwnProperty(fname)) {
+            log(INFO, "Ignoring (not in `compile_commands.json`): " + fname);
+            return null;
+        }
+        if (this.compileCommandsData.ignoreRe && fname.match(this.compileCommandsData.ignoreRe)) {
+            log(INFO, "Ignoring (matches `iwyu.fix.ignore_re`): " + fname);
+            return null;
+        }
+        if (this.compileCommandsData.onlyRe && !fname.match(this.compileCommandsData.onlyRe)) {
+            log(INFO, "Ignoring (does not match `iwyu.fix.only_re`): " + fname);
+            return null;
+        }
+        return this.compileCommandsData.compileCommands[fname];
+    }
+
     compileCommandsJson(): string {
         return this.config
             .get("compile_commands.json", "${workspaceFolder}/compile_commands.json")
@@ -132,12 +154,15 @@ class ConfigData {
     }
 
     updateCompileCommands() {
-        this.compileCommandsData = this.parseCompileCommands();
+        let stats = fs.statSync(this.compileCommandsJson());
+        if (stats.mtimeMs !== this.compileCommandsData.mtimeMs) {
+            this.compileCommandsData = this.parseCompileCommands();
+        }
     }
 
     private parseCompileCommands(): CompileCommandsData {
         let compileCommandsJson = this.compileCommandsJson();
-        log(INFO, "Parsing: `" + compileCommandsJson + "`");
+        log(DEBUG, "Parsing: `" + compileCommandsJson + "`");
         let mtimeMs = fs.statSync(compileCommandsJson).mtimeMs;
         let compileCommands = JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"));
         let cc: CompileCommandsMap = {};
@@ -172,7 +197,7 @@ class ConfigData {
     }
 };
 
-function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyu_output: string) {
+function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) {
     let directory = compileCommand.directory;
     let args = [configData.config.get("fix_includes.py", "fix_includes.py")];
     args.push(configData.config.get("fix.comments", true)
@@ -195,18 +220,16 @@ function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyu_ou
     if (iwyuFilterOutput !== "") {
         let filtered: string[] = [];
         const filterRe = new RegExp("#include.*(" + iwyuFilterOutput + ")");
-        iwyu_output.split("\n").forEach((line: string) => {
+        iwyuOutput.split("\n").forEach((line: string) => {
             if (!line.match(filterRe)) {
                 filtered.push(line);
             }
         });
-        iwyu_output = filtered.join("\n");
-        if (configData.config.get("debug", false)) {
-            log(DEBUG, "IWYU output filtered:\n" + iwyu_output);
-        }
+        iwyuOutput = filtered.join("\n");
+        log(DEBUG, "IWYU output filtered:\n" + iwyuOutput);
     }
     log(DEBUG, "fix:\n(cat <<EOF...IWYU-output...EOF) | " + cmd);
-    cmd = "(cat <<EOF\n" + iwyu_output + "\nEOF\n) | " + cmd;
+    cmd = "(cat <<EOF\n" + iwyuOutput + "\nEOF\n) | " + cmd;
     child_process.exec(cmd, { cwd: directory }, (err: Error | null, stdout: string, _stderr: string) => {
         if (err) {
             log(ERROR, err.message);
@@ -220,9 +243,9 @@ function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyu_ou
     });
 }
 
-function iwyuRun(compileCommand: CompileCommand, configData: ConfigData) {
+function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callback: ((configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) => void)) {
     let file = compileCommand.file;
-    log(INFO, "Updating `" + file + "`");
+    log(DEBUG, "Checking `" + file + "`");
     let iwyu = configData.config.get("include-what-you-use", "include-what-you-use");
 
     // IWYU args
@@ -253,18 +276,16 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData) {
     iwyu += " " + args.concat(compileCommand.arguments).join(" ") + " 2>&1";
 
     let directory = compileCommand.directory;
-    if (configData.config.get("debug", false)) {
-        log(DEBUG, "Directory: `" + directory + "`");
-        log(DEBUG, "IWYU Command: " + iwyu);
-    }
+    log(DEBUG, "Directory: `" + directory + "`");
+    log(DEBUG, "IWYU Command: " + iwyu);
     child_process.exec(iwyu, { cwd: directory }, (err: Error | null, stdout: string, stderr: string) => {
         if (err) {
             log(ERROR, err.message + stdout);
-        } else if (configData.config.get("debug", false)) {
+        } else {
             log(DEBUG, "IWYU output:\n" + stdout);
         }
         if (!err) {
-            iwyuFix(configData, compileCommand, stdout);
+            callback(configData, compileCommand, stdout);
         }
     });
 }
@@ -275,35 +296,126 @@ function iwyuCommand(configData: ConfigData) {
         return;
     }
     var editor: vscode.TextEditor = vscode.window.activeTextEditor;
-    var fname: string = editor.document.fileName;
-    if (!path.isAbsolute(fname)) {
-        fname = path.resolve(configData.workspacefolder, fname);
+
+    configData.updateConfig();
+    configData.updateCompileCommands();
+    let compileCommand = configData.getCompileCommand(editor.document.fileName);
+    if (compileCommand) {
+        editor.document.save();
+        iwyuRun(compileCommand, configData, iwyuFix);
+    }
+}
+
+function createDiagnostic(doc: vscode.TextDocument, lineOfText: vscode.TextLine, line: number, col: number, len: number, include: string): vscode.Diagnostic {
+    // Create range for the `include`.
+    const range = new vscode.Range(line, col, line, col + len);
+    const diagnostic = new vscode.Diagnostic(
+        range, "IWYU: Unused include: " + include,
+        vscode.DiagnosticSeverity.Information);
+    diagnostic.code = IWYU_DIAGNISTIC;
+    return diagnostic;
+}
+
+const removeIncludeRe = /#include\s+(<[^>]*>|"[^"]*")/g;
+const includeRe = /^#include\s+(<[^>]*>|"[^"]*")/g;
+
+function getUnusedIncludes(fname: string, iwyuOutput: string): string[] {
+    let result: string[] = [];
+    let iwyuLines = iwyuOutput.split("\n");
+    let start = fname + " should remove these lines:";
+    let started = false;
+    for (let i = 0; i < iwyuLines.length; i++) {
+        let line = iwyuLines[i];
+        if (started) {
+            if (line === "") {
+                break;
+            }
+            let matches = [...line.matchAll(removeIncludeRe)];
+            if (matches.length) {
+                result.push(matches[0][1]);
+            }
+        } else if (line === start) {
+            started = true;
+        }
+    }
+    return result;
+}
+
+function refreshDiagnostics(configData: ConfigData, doc: vscode.TextDocument, iwyuDiagnostics: vscode.DiagnosticCollection): void {
+    if (doc.languageId !== "cpp") {
+        return;
+    }
+    configData.updateCompileCommands();
+    let compileCommand = configData.getCompileCommand(doc.fileName);
+    if (!compileCommand) {
+        return;
+    }
+    iwyuRun(compileCommand, configData, (configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) => {
+        const unusedIncludes = getUnusedIncludes(compileCommand.file, iwyuOutput);
+        const diagnostics: vscode.Diagnostic[] = [];
+        if (unusedIncludes) {
+            for (let line = 0; line < doc.lineCount; line++) {
+                const lineOfText = doc.lineAt(line);
+                let matches = [...lineOfText.text.matchAll(includeRe)];
+                if (matches.length === 0) {
+                    continue;
+                }
+                let lineInclude = matches[0][1];
+                let unusedIndex = unusedIncludes.findIndex((v, i, o) => {
+                    return v === lineInclude;
+                });
+                if (unusedIndex >= 0) {
+                    let unusedInclude = unusedIncludes[unusedIndex];
+                    let start = lineOfText.text.indexOf(unusedInclude);
+                    if (start >= 0) {
+                        diagnostics.push(createDiagnostic(doc, lineOfText, line, 0, start + unusedInclude.length, unusedInclude));
+                        break;
+                    }
+                }
+            }
+        }
+        iwyuDiagnostics.set(doc.uri, diagnostics);
+    });
+}
+
+function subscribeToDocumentChanges(configData: ConfigData, context: vscode.ExtensionContext, iwyuDiagnostics: vscode.DiagnosticCollection): void {
+    if (vscode.window.activeTextEditor) {
+        refreshDiagnostics(configData, vscode.window.activeTextEditor.document, iwyuDiagnostics);
+    }
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (editor) {
+                refreshDiagnostics(configData, editor.document, iwyuDiagnostics);
+            }
+        })
+    );
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument(e => refreshDiagnostics(configData, e.document, iwyuDiagnostics))
+    );
+    context.subscriptions.push(
+        vscode.workspace.onDidCloseTextDocument(doc => iwyuDiagnostics.delete(doc.uri))
+    );
+}
+
+class IwyuQuickFix implements vscode.CodeActionProvider {
+    public static readonly providedCodeActionKinds = [
+        vscode.CodeActionKind.QuickFix
+    ];
+
+    provideCodeActions(document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationToken): vscode.CodeAction[] {
+        // for each diagnostic entry that has the matching `code`, create a code action command
+        return context.diagnostics
+            .filter(diagnostic => diagnostic.code === IWYU_DIAGNISTIC)
+            .map(diagnostic => this.createCommandCodeAction(diagnostic));
     }
 
-    let stat = util.promisify(fs.stat);
-    stat(configData.compileCommandsJson()).then(stats => {
-        configData.updateConfig();
-        let commandsUpdated = stats.mtimeMs !== configData.compileCommandsData.mtimeMs;
-        if (commandsUpdated) {
-            configData.updateCompileCommands();
-        }
-        if (!configData.compileCommandsData.compileCommands.hasOwnProperty(fname)) {
-            log(INFO, "Ignoring (not in `compile_commands.json`): " + fname);
-            return;
-        }
-        if (configData.compileCommandsData.ignoreRe && fname.match(configData.compileCommandsData.ignoreRe)) {
-            log(INFO, "Ignoring (matches `iwyu.fix.ignore_re`): " + fname);
-            return;
-        }
-        if (configData.compileCommandsData.onlyRe && !fname.match(configData.compileCommandsData.onlyRe)) {
-            log(INFO, "Ignoring (does not match `iwyu.fix.only_re`): " + fname);
-            return;
-        }
-        editor.document.save();
-        iwyuRun(configData.compileCommandsData.compileCommands[fname], configData);
-    }).catch((err) => {
-        log(ERROR, err);
-    });
+    private createCommandCodeAction(diagnostic: vscode.Diagnostic): vscode.CodeAction {
+        const action = new vscode.CodeAction('Run IWYU to fix includes.', vscode.CodeActionKind.QuickFix);
+        action.command = { command: IWYU_COMMAND, title: 'Learn more about emojis', tooltip: 'Run IWYU to fix includes.' };
+        action.diagnostics = [diagnostic];
+        action.isPreferred = true;
+        return action;
+    }
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -311,12 +423,23 @@ export function activate(context: vscode.ExtensionContext) {
     let workspacefolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0 ?
         vscode.workspace.workspaceFolders[0].uri.fsPath || "" : "";
     if (workspacefolder === "") {
-        log(ERROR, "No workspace folder set.");
+        log(ERROR, "No workspace folder set. Not activating IWYU.");
+        return;
     }
     let configData = new ConfigData(workspacefolder);
 
-    let disposable = vscode.commands.registerCommand("iwyu.run", () => { iwyuCommand(configData); });
-    context.subscriptions.push(disposable);
+    const iwyuDiagnostics = vscode.languages.createDiagnosticCollection("iwyu");
+    context.subscriptions.push(iwyuDiagnostics);
+
+    subscribeToDocumentChanges(configData, context, iwyuDiagnostics);
+
+    context.subscriptions.push(
+        vscode.languages.registerCodeActionsProvider('cpp', new IwyuQuickFix(), {
+            providedCodeActionKinds: IwyuQuickFix.providedCodeActionKinds
+        })
+    );
+
+    context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND, () => { iwyuCommand(configData); }));
 }
 
 export function deactivate() { }
