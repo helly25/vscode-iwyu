@@ -108,110 +108,136 @@ export function parseCommandLine(cmd: string): string[] {
     return args;
 }
 
-// Build up a map from abs-file -> entry (file, command/arguments, directory)
-// The 'command' property will be set to just the command.
-// The 'arguments' property will be set to all args (split by " ").
-function parseCompileCommands(compileCommandsJson: string, workspacefolder: string): CompileCommandsData {
-    let mtimeMs = fs.statSync(compileCommandsJson).mtimeMs;
-    let compileCommands = JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"));
-    let cc: CompileCommandsMap = {};
-    for (let entry of compileCommands) {
-        let fname: string = entry.file;
-        let directory: string = workspacefolder;
-        if (entry.hasOwnProperty("directory")) {
-            directory = entry.directory;
-        }
-        if (!path.isAbsolute(fname)) {
-            fname = path.resolve(workspacefolder, directory, fname);
-        }
-        cc[fname] = entry;
-        cc[fname].directory = directory;
-        if (entry.hasOwnProperty("arguments")) {
-            cc[fname].command = entry.arguments[0];
-            cc[fname].arguments = entry.arguments.slice(1);
-        } else {
-            let args = parseCommandLine(entry.command);
-            cc[fname].command = args[0];
-            cc[fname].arguments = args.slice(1);
-        }
-    }
-    var config = vscode.workspace.getConfiguration("iwyu");
-    let ignoreRe: string = config.get("fix.ignore_re", "");
-    let onlyRe = config.get("fix.only_re", "");
-    return {
-        compileCommands: cc,
-        mtimeMs: mtimeMs,
-        ignoreRe: ignoreRe === "" ? null : new RegExp(ignoreRe),
-        onlyRe: onlyRe === "" ? null : new RegExp(onlyRe),
-    };
-}
+// Class to hold all relevant data needed in the extension.
+class ConfigData {
+    workspacefolder: string;
+    config: vscode.WorkspaceConfiguration;
+    compileCommandsData: CompileCommandsData;
 
-function runIwyu(compileCommand: CompileCommand, config: vscode.WorkspaceConfiguration) {
+    constructor(workspacefolder: string) {
+        this.workspacefolder = workspacefolder;
+        this.config = vscode.workspace.getConfiguration("iwyu");
+        this.compileCommandsData = this.parseCompileCommands();
+    }
+
+    compileCommandsJson(): string {
+        return this.config
+            .get("compile_commands.json", "${workspaceFolder}/compile_commands.json")
+            .replace("${workspaceRoot}", this.workspacefolder)
+            .replace("${workspaceFolder}", this.workspacefolder);
+    }
+
+    updateConfig() {
+        this.config = vscode.workspace.getConfiguration("iwyu");
+    }
+
+    updateCompileCommands() {
+        this.compileCommandsData = this.parseCompileCommands();
+    }
+
+    private parseCompileCommands(): CompileCommandsData {
+        let compileCommandsJson = this.compileCommandsJson();
+        log(INFO, "Parsing: `" + compileCommandsJson + "`");
+        let mtimeMs = fs.statSync(compileCommandsJson).mtimeMs;
+        let compileCommands = JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"));
+        let cc: CompileCommandsMap = {};
+        for (let entry of compileCommands) {
+            let fname: string = entry.file;
+            let directory: string = this.workspacefolder;
+            if (entry.hasOwnProperty("directory")) {
+                directory = entry.directory;
+            }
+            if (!path.isAbsolute(fname)) {
+                fname = path.resolve(this.workspacefolder, directory, fname);
+            }
+            cc[fname] = entry;
+            cc[fname].directory = directory;
+            if (entry.hasOwnProperty("arguments")) {
+                cc[fname].command = entry.arguments[0];
+                cc[fname].arguments = entry.arguments.slice(1);
+            } else {
+                let args = parseCommandLine(entry.command);
+                cc[fname].command = args[0];
+                cc[fname].arguments = args.slice(1);
+            }
+        }
+        let ignoreRe: string = this.config.get("fix.ignore_re", "");
+        let onlyRe = this.config.get("fix.only_re", "");
+        return {
+            compileCommands: cc,
+            mtimeMs: mtimeMs,
+            ignoreRe: ignoreRe === "" ? null : new RegExp(ignoreRe),
+            onlyRe: onlyRe === "" ? null : new RegExp(onlyRe),
+        };
+    }
+};
+
+function iwyuRun(compileCommand: CompileCommand, configData: ConfigData) {
     let file = compileCommand.file;
     log(INFO, "Updating `" + file + "`");
-    let iwyu = config.get("include-what-you-use", "include-what-you-use");
+    let iwyu = configData.config.get("include-what-you-use", "include-what-you-use");
 
     // IWYU args
-    let len = config.get("iwyu.max_line_length", 80);
+    let len = configData.config.get("iwyu.max_line_length", 80);
     let args = [`-Xiwyu --max_line_length=${len}`];
 
-    args.push(config
+    args.push(configData.config
         .get("iwyu.keep", [])
         .map((x: string) => "-Xiwyu --keep=" + x)
         .join(" "));
 
-    if (config.get("iwyu.transitive_includes_only", true)) {
+    if (configData.config.get("iwyu.transitive_includes_only", true)) {
         args.push("-Xiwyu --transitive_includes_only");
     }
-    if (config.get("iwyu.no_fwd_decls", false)) {
+    if (configData.config.get("iwyu.no_fwd_decls", false)) {
         args.push("-Xiwyu --no_fwd_decls");
     }
-    if (config.get("iwyu.no_default_mappings", false)) {
+    if (configData.config.get("iwyu.no_default_mappings", false)) {
         args.push("-Xiwyu --no_default_mappings");
     }
 
-    if (config.get("iwyu.mapping_file", "").trim() !== "") {
-        args.push("-Xiwyu --mapping_file=" + config.get("mapping_file", ""));
+    if (configData.config.get("iwyu.mapping_file", "").trim() !== "") {
+        args.push("-Xiwyu --mapping_file=" + configData.config.get("mapping_file", ""));
     }
-    if (config.get("iwyu.additional_params", "") !== "") {
-        args.push(config.get("additional_params", ""));
+    if (configData.config.get("iwyu.additional_params", "") !== "") {
+        args.push(configData.config.get("additional_params", ""));
     }
     iwyu += " " + args.concat(compileCommand.arguments).join(" ") + " 2>&1";
 
     // Script and args for the python fix_includes.py.
-    let pyscript = config.get("fix_includes.py", "fix_includes.py");
+    let pyscript = configData.config.get("fix_includes.py", "fix_includes.py");
     let pyargs = [];
-    pyargs.push(config.get("fix.comments", true)
+    pyargs.push(configData.config.get("fix.comments", true)
         ? "--comments"
         : "--nocomments");
-    pyargs.push(config.get("fix.safe", true)
+    pyargs.push(configData.config.get("fix.safe", true)
         ? "--safe_headers"
         : "--nosafe_headers");
-    pyargs.push(config.get("fix.reorder", true)
+    pyargs.push(configData.config.get("fix.reorder", true)
         ? "--reorder"
         : "--noreorder");
-    if (config.get("fix.ignore_re", "").trim() !== "") {
-        pyargs.push("--ignore_re=" + config.get("ignore_re", ""));
+    if (configData.config.get("fix.ignore_re", "").trim() !== "") {
+        pyargs.push("--ignore_re=" + configData.config.get("ignore_re", ""));
     }
-    if (config.get("fix.only_re", "").trim() !== "") {
-        pyargs.push("--only_re=" + config.get("only_re", ""));
+    if (configData.config.get("fix.only_re", "").trim() !== "") {
+        pyargs.push("--only_re=" + configData.config.get("only_re", ""));
     }
     pyscript += " " + pyargs.join(" ");
 
     let directory = compileCommand.directory;
-    if (config.get("debug", false)) {
+    if (configData.config.get("debug", false)) {
         log(DEBUG, "Directory: `" + directory + "`");
         log(DEBUG, "IWYU Command: " + iwyu);
     }
     child_process.exec(iwyu, { cwd: directory }, (err: Error | null, stdout: string, stderr: string) => {
         if (err) {
             log(ERROR, err.message + stdout);
-        } else if (config.get("debug", false)) {
+        } else if (configData.config.get("debug", false)) {
             log(DEBUG, "IWYU output:\n" + stdout);
         }
         if (!err) {
             let cmd = "";
-            let iwyuFilterOutput = config.get("filter_iwyu_output", "").trim();
+            let iwyuFilterOutput = configData.config.get("filter_iwyu_output", "").trim();
             if (iwyuFilterOutput !== "") {
                 let filtered: string[] = [];
                 const filterRe = new RegExp("#include.*(" + iwyuFilterOutput + ")");
@@ -221,7 +247,7 @@ function runIwyu(compileCommand: CompileCommand, config: vscode.WorkspaceConfigu
                     }
                 });
                 stdout = filtered.join("\n");
-                if (config.get("debug", false)) {
+                if (configData.config.get("debug", false)) {
                     log(DEBUG, "IWYU output filtered:\n" + stdout);
                 }
             }
@@ -243,63 +269,53 @@ function runIwyu(compileCommand: CompileCommand, config: vscode.WorkspaceConfigu
     });
 }
 
+function iwyuCommand(configData: ConfigData) {
+    if (!vscode.window.activeTextEditor) {
+        log(ERROR, "No editor.");
+        return;
+    }
+    var editor: vscode.TextEditor = vscode.window.activeTextEditor;
+    var fname: string = editor.document.fileName;
+    if (!path.isAbsolute(fname)) {
+        fname = path.resolve(configData.workspacefolder, fname);
+    }
+
+    let stat = util.promisify(fs.stat);
+    stat(configData.compileCommandsJson()).then(stats => {
+        configData.updateConfig();
+        let commandsUpdated = stats.mtimeMs !== configData.compileCommandsData.mtimeMs;
+        if (commandsUpdated) {
+            configData.updateCompileCommands();
+        }
+        if (!configData.compileCommandsData.compileCommands.hasOwnProperty(fname)) {
+            log(INFO, "Ignoring (not in `compile_commands.json`): " + fname);
+            return;
+        }
+        if (configData.compileCommandsData.ignoreRe && fname.match(configData.compileCommandsData.ignoreRe)) {
+            log(INFO, "Ignoring (matches `iwyu.fix.ignore_re`): " + fname);
+            return;
+        }
+        if (configData.compileCommandsData.onlyRe && !fname.match(configData.compileCommandsData.onlyRe)) {
+            log(INFO, "Ignoring (does not match `iwyu.fix.only_re`): " + fname);
+            return;
+        }
+        editor.document.save();
+        iwyuRun(configData.compileCommandsData.compileCommands[fname], configData);
+    }).catch((err) => {
+        log(ERROR, err);
+    });
+}
+
 export function activate(context: vscode.ExtensionContext) {
     log(INFO, "Extension activated");
-    var workspacefolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0 ?
+    let workspacefolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0 ?
         vscode.workspace.workspaceFolders[0].uri.fsPath || "" : "";
     if (workspacefolder === "") {
         log(ERROR, "No workspace folder set.");
     }
-    var config = vscode.workspace.getConfiguration("iwyu");
-    var compileCommandsJson: string = config
-        .get("compile_commands.json", "${workspaceFolder}/compile_commands.json")
-        .replace("${workspaceRoot}", workspacefolder)
-        .replace("${workspaceFolder}", workspacefolder);
-    var compileCommandsData = parseCompileCommands(compileCommandsJson, workspacefolder);
-    let disposable = vscode.commands.registerCommand("iwyu.run", () => {
-        if (!vscode.window.activeTextEditor) {
-            log(ERROR, "No editor.");
-            return;
-        }
-        var editor: vscode.TextEditor = vscode.window.activeTextEditor;
-        var fname: string = editor.document.fileName;
-        if (!path.isAbsolute(fname)) {
-            fname = path.resolve(workspacefolder, fname);
-        }
+    let configData = new ConfigData(workspacefolder);
 
-        let stat = util.promisify(fs.stat);
-        stat(compileCommandsJson).then(stats => {
-            let newConfig = vscode.workspace.getConfiguration("iwyu");
-            let commandsUpdated = stats.mtimeMs !== compileCommandsData.mtimeMs;
-            let configUpdated = newConfig !== config;
-            if (commandsUpdated) {
-                log(INFO, "Parsing: `" + compileCommandsJson+"`");
-                compileCommandsData = parseCompileCommands(compileCommandsJson, workspacefolder);
-            }
-            if (configUpdated) {
-                if (config.get("debug", false)) {
-                    log(DEBUG, "Extension config updated.");
-                }
-                config = newConfig;
-            }
-            if (!compileCommandsData.compileCommands.hasOwnProperty(fname)) {
-                log(INFO, "Ignoring (not in `compile_commands.json`): " + fname);
-                return;
-            }
-            if (compileCommandsData.ignoreRe && fname.match(compileCommandsData.ignoreRe)) {
-                log(INFO, "Ignoring (matches `iwyu.fix.ignore_re`): " + fname);
-                return;
-            }
-            if (compileCommandsData.onlyRe && !fname.match(compileCommandsData.onlyRe)) {
-                log(INFO, "Ignoring (does not match `iwyu.fix.only_re`): " + fname);
-                return;
-            }
-            editor.document.save();
-            runIwyu(compileCommandsData.compileCommands[fname], config);
-        }).catch((err) => {
-            log(ERROR, err);
-        });
-    });
+    let disposable = vscode.commands.registerCommand("iwyu.run", () => { iwyuCommand(configData); });
     context.subscriptions.push(disposable);
 }
 
