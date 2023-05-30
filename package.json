@@ -2,7 +2,7 @@
     "name": "helly25iwyu",
     "displayName": "IWYU: Include What You Use",
     "description": "This extension allows to use IWYU (Include What You Use) in VScode.",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "publisher": "helly25",
     "license": "Apache-2.0",
     "repository": {

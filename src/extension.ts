@@ -63,6 +63,51 @@ function log(severity: LogSeverity, message: string) {
     }
 }
 
+// Parses a command line into an array.
+// Splits on spaces as separators while respecting \, ", '.
+export function parseCommandLine(cmd: string): string[] {
+    let args: string[] = [];
+    let single = false;
+    let double = false;
+    let start = 0;
+    for (let i = 0; i < cmd.length; ++i) {
+        if (single) {
+            if (cmd[i] === "'") {
+                single = false;
+            }
+            continue;
+        }
+        if (double) {
+            if (cmd[i] === '"') {
+                double = false;
+            }
+            continue;
+        }
+        switch (cmd[i]) {
+            case " ":
+                // Skip over multiple spaces.
+                if (start < i) {
+                    args.push(cmd.substring(start, i));
+                }
+                start = i + 1;
+                continue;
+            case "'":
+                single = true;
+                break;
+            case '"':
+                double = true;
+                break;
+            case "\\":
+                i++;  // Simply skip to un-escape the next char.
+                break;
+        }
+    }
+    if (start < cmd.length) {
+        args.push(cmd.substring(start, cmd.length));
+    }
+    return args;
+}
+
 // Build up a map from abs-file -> entry (file, command/arguments, directory)
 // The 'command' property will be set to just the command.
 // The 'arguments' property will be set to all args (split by " ").
@@ -85,10 +130,9 @@ function parseCompileCommands(compileCommandsJson: string, workspacefolder: stri
             cc[fname].command = entry.arguments[0];
             cc[fname].arguments = entry.arguments.slice(1);
         } else {
-            // TODO: Fix space in dir/filename of command and respect quotes.
-            let args = entry.command.split(" ");
+            let args = parseCommandLine(entry.command);
             cc[fname].command = args[0];
-            cc[fname].arguments = args.slize(1);
+            cc[fname].arguments = args.slice(1);
         }
     }
     var config = vscode.workspace.getConfiguration("iwyu");
@@ -163,7 +207,7 @@ function runIwyu(compileCommand: CompileCommand, config: vscode.WorkspaceConfigu
         if (err) {
             log(ERROR, err.message + stdout);
         } else if (config.get("debug", false)) {
-            log(DEBUG, "IWYU\n" + stdout);
+            log(DEBUG, "IWYU output:\n" + stdout);
         }
         if (!err) {
             let cmd = "";
@@ -178,7 +222,7 @@ function runIwyu(compileCommand: CompileCommand, config: vscode.WorkspaceConfigu
                 });
                 stdout = filtered.join("\n");
                 if (config.get("debug", false)) {
-                    log(DEBUG, "IWYU filtered:\n" + stdout);
+                    log(DEBUG, "IWYU output filtered:\n" + stdout);
                 }
             }
             cmd += ` | ${pyscript}`;
