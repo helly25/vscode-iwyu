@@ -6,7 +6,7 @@ This extension integrates [include-what-you-use](https://github.com/include-what
 > QUOTE: "Include what you use" means this: for every symbol (type, function, variable, or macro) that you use in foo.cc
  (or foo.cpp), either foo.cc or foo.h should include a .h file that exports the declaration of that symbol. (Similarly,
  for foo_test.cc, either foo_test.cc or foo.h should do the including.) Obviously symbols defined in foo.cc itself are
- excluded from this requirement."
+ excluded from this requirement." \[[IWYU](https://github.com/include-what-you-use/include-what-you-use/blob/master/README.md)\]
 
 ## Features
 
