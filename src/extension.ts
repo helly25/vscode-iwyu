@@ -172,6 +172,54 @@ class ConfigData {
     }
 };
 
+function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyu_output: string) {
+    let directory = compileCommand.directory;
+    let args = [configData.config.get("fix_includes.py", "fix_includes.py")];
+    args.push(configData.config.get("fix.comments", true)
+        ? "--comments"
+        : "--nocomments");
+    args.push(configData.config.get("fix.safe", true)
+        ? "--safe_headers"
+        : "--nosafe_headers");
+    args.push(configData.config.get("fix.reorder", true)
+        ? "--reorder"
+        : "--noreorder");
+    if (configData.config.get("fix.ignore_re", "").trim() !== "") {
+        args.push("--ignore_re=" + configData.config.get("ignore_re", ""));
+    }
+    if (configData.config.get("fix.only_re", "").trim() !== "") {
+        args.push("--only_re=" + configData.config.get("only_re", ""));
+    }
+    let cmd = args.join(" ");
+    let iwyuFilterOutput = configData.config.get("filter_iwyu_output", "").trim();
+    if (iwyuFilterOutput !== "") {
+        let filtered: string[] = [];
+        const filterRe = new RegExp("#include.*(" + iwyuFilterOutput + ")");
+        iwyu_output.split("\n").forEach((line: string) => {
+            if (!line.match(filterRe)) {
+                filtered.push(line);
+            }
+        });
+        iwyu_output = filtered.join("\n");
+        if (configData.config.get("debug", false)) {
+            log(DEBUG, "IWYU output filtered:\n" + iwyu_output);
+        }
+    }
+    log(DEBUG, "fix:\n(cat <<EOF...IWYU-output...EOF) | " + cmd);
+    cmd = "(cat <<EOF\n" + iwyu_output + "\nEOF\n) | " + cmd;
+    child_process.exec(cmd, { cwd: directory }, (err: Error | null, stdout: string, _stderr: string) => {
+        if (err) {
+            log(ERROR, err.message);
+        }
+        log(INFO, stdout
+            .split(os.EOL)
+            .filter((element: string, _index, _array: string[]) => {
+                return element.includes("IWYU");
+            }).join(os.EOL));
+        log(INFO, "Done `" + compileCommand.file + "`");
+    });
+}
+
 function iwyuRun(compileCommand: CompileCommand, configData: ConfigData) {
     let file = compileCommand.file;
     log(INFO, "Updating `" + file + "`");
@@ -204,26 +252,6 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData) {
     }
     iwyu += " " + args.concat(compileCommand.arguments).join(" ") + " 2>&1";
 
-    // Script and args for the python fix_includes.py.
-    let pyscript = configData.config.get("fix_includes.py", "fix_includes.py");
-    let pyargs = [];
-    pyargs.push(configData.config.get("fix.comments", true)
-        ? "--comments"
-        : "--nocomments");
-    pyargs.push(configData.config.get("fix.safe", true)
-        ? "--safe_headers"
-        : "--nosafe_headers");
-    pyargs.push(configData.config.get("fix.reorder", true)
-        ? "--reorder"
-        : "--noreorder");
-    if (configData.config.get("fix.ignore_re", "").trim() !== "") {
-        pyargs.push("--ignore_re=" + configData.config.get("ignore_re", ""));
-    }
-    if (configData.config.get("fix.only_re", "").trim() !== "") {
-        pyargs.push("--only_re=" + configData.config.get("only_re", ""));
-    }
-    pyscript += " " + pyargs.join(" ");
-
     let directory = compileCommand.directory;
     if (configData.config.get("debug", false)) {
         log(DEBUG, "Directory: `" + directory + "`");
@@ -236,35 +264,7 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData) {
             log(DEBUG, "IWYU output:\n" + stdout);
         }
         if (!err) {
-            let cmd = "";
-            let iwyuFilterOutput = configData.config.get("filter_iwyu_output", "").trim();
-            if (iwyuFilterOutput !== "") {
-                let filtered: string[] = [];
-                const filterRe = new RegExp("#include.*(" + iwyuFilterOutput + ")");
-                stdout.split("\n").forEach((line: string) => {
-                    if (!line.match(filterRe)) {
-                        filtered.push(line);
-                    }
-                });
-                stdout = filtered.join("\n");
-                if (configData.config.get("debug", false)) {
-                    log(DEBUG, "IWYU output filtered:\n" + stdout);
-                }
-            }
-            cmd += ` | ${pyscript}`;
-            log(DEBUG, "fix:\ncat <<EOF...IWYU-output...EOF)" + cmd);
-            cmd = "(cat <<EOF\n" + stdout + "\nEOF\n)" + cmd;
-            child_process.exec(cmd, { cwd: directory }, (err: Error | null, stdout: string, _stderr: string) => {
-                if (err) {
-                    log(ERROR, err.message);
-                }
-                log(INFO, stdout
-                    .split(os.EOL)
-                    .filter((element: string, _index, _array: string[]) => {
-                        return element.includes("IWYU");
-                    }).join(os.EOL));
-                log(INFO, "Done `" + file + "`");
-            });
+            iwyuFix(configData, compileCommand, stdout);
         }
     });
 }
