@@ -12,3 +12,12 @@
 
 - Add diagnostic support
 - Add quickfix support
+
+## [0.0.4]
+
+- Speed up diagnostics by limiting how often iwyu is run and apply heuristics to early skip source scanning.
+- Add new config settings:
+  - `iwyu.diagnostics.iwyu_interval`: Minimum interval time in seconds between iwyu calls.
+  - `iwyu.diagnostics.only_re`: Only compute diagnostics for files that match this regexp.
+  - `iwyu.diagnostics.scan_min`: Scan at least this many lines, if no include is found, then stop.
+  - `iwyu.diagnostics.scan_more`: After finding an include, scan at least this many more lines.

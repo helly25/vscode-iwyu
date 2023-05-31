@@ -16,7 +16,6 @@ import * as child_process from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import * as util from 'util';
 import * as vscode from 'vscode';
 
 const IWYU_COMMAND = "iwyu.run";
@@ -111,16 +110,34 @@ export function parseCommandLine(cmd: string): string[] {
     return args;
 }
 
+async function until(conditionFunction: (() => boolean), intervalMs: number = 100) {
+    const poll = (resolve: ((value?: undefined) => void), reject?: (reason?: any) => void) => {
+        if (conditionFunction()) {
+            resolve();
+        } else {
+            setTimeout(() => poll(resolve), intervalMs);
+        }
+    };
+    return new Promise(poll);
+}
+
 // Class to hold all relevant data needed in the extension.
 class ConfigData {
     workspacefolder: string;
     config: vscode.WorkspaceConfiguration;
     compileCommandsData: CompileCommandsData;
+    iwyuOutput: string = "";
+    iwyuOutputTime: number = Date.now();
+    iwyuRunning: number = 0;
 
     constructor(workspacefolder: string) {
         this.workspacefolder = workspacefolder;
         this.config = vscode.workspace.getConfiguration("iwyu");
         this.compileCommandsData = this.parseCompileCommands();
+    }
+
+    async waitUntilIwyuFinished(configData: ConfigData) {
+        await until(() => this.iwyuRunning === 0);
     }
 
     getCompileCommand(fname: string): CompileCommand | null {
@@ -209,11 +226,13 @@ function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOut
     args.push(configData.config.get("fix.reorder", true)
         ? "--reorder"
         : "--noreorder");
-    if (configData.config.get("fix.ignore_re", "").trim() !== "") {
-        args.push("--ignore_re=" + configData.config.get("ignore_re", ""));
+    let ignore = configData.config.get("fix.ignore_re", "").trim();
+    if (ignore !== "") {
+        args.push("--ignore_re=" + ignore);
     }
-    if (configData.config.get("fix.only_re", "").trim() !== "") {
-        args.push("--only_re=" + configData.config.get("only_re", ""));
+    let only = configData.config.get("fix.only_re", "").trim();
+    if (only !== "") {
+        args.push("--only_re=" + only);
     }
     let cmd = args.join(" ");
     let iwyuFilterOutput = configData.config.get("filter_iwyu_output", "").trim();
@@ -248,7 +267,6 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
     log(DEBUG, "Checking `" + file + "`");
     let iwyu = configData.config.get("include-what-you-use", "include-what-you-use");
 
-    // IWYU args
     let len = configData.config.get("iwyu.max_line_length", 80);
     let args = [`-Xiwyu --max_line_length=${len}`];
 
@@ -267,27 +285,43 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
         args.push("-Xiwyu --no_default_mappings");
     }
 
-    if (configData.config.get("iwyu.mapping_file", "").trim() !== "") {
-        args.push("-Xiwyu --mapping_file=" + configData.config.get("mapping_file", ""));
+    let mapping = configData.config.get("iwyu.mapping_file", "").trim();
+    if (mapping !== "") {
+        args.push("-Xiwyu --mapping_file=" + mapping);
     }
-    if (configData.config.get("iwyu.additional_params", "") !== "") {
-        args.push(configData.config.get("additional_params", ""));
+    let params = configData.config.get("iwyu.additional_params", "");
+    if (params !== "") {
+        args.push(params);
     }
     iwyu += " " + args.concat(compileCommand.arguments).join(" ") + " 2>&1";
 
     let directory = compileCommand.directory;
     log(DEBUG, "Directory: `" + directory + "`");
     log(DEBUG, "IWYU Command: " + iwyu);
-    child_process.exec(iwyu, { cwd: directory }, (err: Error | null, stdout: string, stderr: string) => {
-        if (err) {
-            log(ERROR, err.message + stdout);
-        } else {
-            log(DEBUG, "IWYU output:\n" + stdout);
+    configData.iwyuRunning++;
+    let decreased = false;
+    try {
+        child_process.exec(iwyu, { cwd: directory }, (err: Error | null, stdout: string, stderr: string) => {
+            if (err) {
+                log(ERROR, err.message + stdout);
+            } else {
+                log(DEBUG, "IWYU output:\n" + stdout);
+            }
+            if (!err) {
+                configData.iwyuOutput = stdout;
+                configData.iwyuOutputTime = Date.now();
+                configData.iwyuRunning = Math.max(0, configData.iwyuRunning - 1);
+                decreased = true;
+                callback(configData, compileCommand, stdout);
+            }
+        });
+    }
+    catch (error) {
+        if (!decreased) {
+            configData.iwyuRunning = Math.max(0, configData.iwyuRunning - 1);
         }
-        if (!err) {
-            callback(configData, compileCommand, stdout);
-        }
-    });
+        throw error;
+    }
 }
 
 function iwyuCommand(configData: ConfigData) {
@@ -312,15 +346,13 @@ function createDiagnostic(doc: vscode.TextDocument, lineOfText: vscode.TextLine,
     const diagnostic = new vscode.Diagnostic(
         range, "Unused include (fix available)",
         vscode.DiagnosticSeverity.Warning);
-    diagnostic.source = "iwyu";
-    // The `value` is also used as a filter elsewhere. So it must be a const or
-    // other sync means must be available.
-    diagnostic.code = { value: IWYU_DIAGNISTIC, target: vscode.Uri.parse("https://helly25.com/vscode-iwyu") };
+    diagnostic.source = IWYU_DIAGNISTIC;
+    diagnostic.code = { value: "iwyu", target: vscode.Uri.parse("https://helly25.com/vscode-iwyu") };
     return diagnostic;
 }
 
 const removeIncludeRe = /#include\s+(<[^>]*>|"[^"]*")/g;
-const includeRe = /^#include\s+(<[^>]*>|"[^"]*")/g;
+const includeRe = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
 
 function getUnusedIncludes(fname: string, iwyuOutput: string): string[] {
     let result: string[] = [];
@@ -344,57 +376,95 @@ function getUnusedIncludes(fname: string, iwyuOutput: string): string[] {
     return result;
 }
 
-function refreshDiagnostics(configData: ConfigData, doc: vscode.TextDocument, iwyuDiagnostics: vscode.DiagnosticCollection): void {
+function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileCommand, doc: vscode.TextDocument, iwyuDiagnostics: vscode.DiagnosticCollection): void {
+    let iwyuOutput: string = configData.iwyuOutput;
+    const unusedIncludes = getUnusedIncludes(compileCommand.file, iwyuOutput);
+    const diagnostics: vscode.Diagnostic[] = [];
+    if (unusedIncludes) {
+        let scanMin: number = configData.config.get("diagnostics.scan_min", 16);
+        let scanMax: number = scanMin;
+        let scanMore: number = configData.config.get("diagnostics.scan_more", 1);
+        for (let line = 0; line < scanMax && line < doc.lineCount; line++) {
+            const lineOfText = doc.lineAt(line);
+            if (line < scanMin) {
+                if (lineOfText.isEmptyOrWhitespace) {
+                    scanMax++;
+                    continue;
+                }
+                let p = lineOfText.firstNonWhitespaceCharacterIndex;
+                if (p >= 0) {
+                    if (lineOfText.text.substring(p, p + 2) === "//") {
+                        scanMax++;
+                        continue;
+                    }
+                    if (lineOfText.text[p] === "#") {
+                        scanMax++;
+                        // no continue, must scan the line
+                    }
+                }
+            }
+            let matches = [...lineOfText.text.matchAll(includeRe)];
+            if (matches.length === 0) {
+                continue;
+            }
+            if (line >= scanMin) {
+                scanMax = Math.max(line + 1 + scanMore, scanMax);
+            }
+            let lineInclude = matches[0][1];
+            let unusedIndex = unusedIncludes.findIndex((v, i, o) => {
+                return v === lineInclude;
+            });
+            if (unusedIndex >= 0) {
+                let unusedInclude = unusedIncludes[unusedIndex];
+                let start = lineOfText.text.indexOf(unusedInclude);
+                if (start >= 0) {
+                    diagnostics.push(createDiagnostic(doc, lineOfText, line, 0, start + unusedInclude.length, unusedInclude));
+                }
+            }
+        }
+    }
+    iwyuDiagnostics.set(doc.uri, diagnostics);
+}
+
+function iwyuDiagnosticsRefresh(configData: ConfigData, doc: vscode.TextDocument, iwyuDiagnostics: vscode.DiagnosticCollection) {
     if (doc.languageId !== "cpp") {
         return;
     }
     configData.updateConfig();
+    let diagnosticsOnlyRe: string = configData.config.get("diagnostics.only_re", "");
+    if (diagnosticsOnlyRe && !doc.fileName.match(diagnosticsOnlyRe)) {
+        return;
+    }
     configData.updateCompileCommands();
-    let compileCommand = configData.getCompileCommand(doc.fileName);
+    var compileCommand = configData.getCompileCommand(doc.fileName);
     if (!compileCommand) {
         return;
     }
-    iwyuRun(compileCommand, configData, (configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) => {
-        const unusedIncludes = getUnusedIncludes(compileCommand.file, iwyuOutput);
-        const diagnostics: vscode.Diagnostic[] = [];
-        if (unusedIncludes) {
-            for (let line = 0; line < doc.lineCount; line++) {
-                const lineOfText = doc.lineAt(line);
-                let matches = [...lineOfText.text.matchAll(includeRe)];
-                if (matches.length === 0) {
-                    continue;
-                }
-                let lineInclude = matches[0][1];
-                let unusedIndex = unusedIncludes.findIndex((v, i, o) => {
-                    return v === lineInclude;
-                });
-                if (unusedIndex >= 0) {
-                    let unusedInclude = unusedIncludes[unusedIndex];
-                    let start = lineOfText.text.indexOf(unusedInclude);
-                    if (start >= 0) {
-                        diagnostics.push(createDiagnostic(doc, lineOfText, line, 0, start + unusedInclude.length, unusedInclude));
-                        break;
-                    }
-                }
-            }
+    configData.waitUntilIwyuFinished(configData).then(() => {
+        if (!compileCommand) {
+            return;
         }
-        iwyuDiagnostics.set(doc.uri, diagnostics);
+        if (configData.iwyuOutput !== "" && configData.iwyuOutputTime + configData.config.get("diagnostics.iwyu_interval", 1000) > Date.now()) {
+            iwyuDiagnosticsScan(configData, compileCommand, doc, iwyuDiagnostics);
+        } else {
+            iwyuRun(compileCommand, configData, (configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) => iwyuDiagnosticsScan(configData, compileCommand, doc, iwyuDiagnostics));
+        }
     });
 }
 
 function subscribeToDocumentChanges(configData: ConfigData, context: vscode.ExtensionContext, iwyuDiagnostics: vscode.DiagnosticCollection): void {
     if (vscode.window.activeTextEditor) {
-        refreshDiagnostics(configData, vscode.window.activeTextEditor.document, iwyuDiagnostics);
+        iwyuDiagnosticsRefresh(configData, vscode.window.activeTextEditor.document, iwyuDiagnostics);
     }
     context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor(editor => {
             if (editor) {
-                refreshDiagnostics(configData, editor.document, iwyuDiagnostics);
+                iwyuDiagnosticsRefresh(configData, editor.document, iwyuDiagnostics);
             }
         })
     );
     context.subscriptions.push(
-        vscode.workspace.onDidChangeTextDocument(e => refreshDiagnostics(configData, e.document, iwyuDiagnostics))
+        vscode.workspace.onDidChangeTextDocument(e => iwyuDiagnosticsRefresh(configData, e.document, iwyuDiagnostics))
     );
     context.subscriptions.push(
         vscode.workspace.onDidCloseTextDocument(doc => iwyuDiagnostics.delete(doc.uri))
@@ -409,13 +479,13 @@ class IwyuQuickFix implements vscode.CodeActionProvider {
     provideCodeActions(document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationToken): vscode.CodeAction[] {
         // for each diagnostic entry that has the matching `code`, create a code action command
         return context.diagnostics
-            .filter(diagnostic => diagnostic.code === IWYU_DIAGNISTIC)
+            .filter(diagnostic => diagnostic.source === IWYU_DIAGNISTIC)
             .map(diagnostic => this.createCommandCodeAction(diagnostic));
     }
 
     private createCommandCodeAction(diagnostic: vscode.Diagnostic): vscode.CodeAction {
         const action = new vscode.CodeAction('Run IWYU to fix includes.', vscode.CodeActionKind.QuickFix);
-        action.command = { command: IWYU_COMMAND, title: 'Learn more about emojis', tooltip: 'Run IWYU to fix includes.' };
+        action.command = { command: IWYU_COMMAND, title: 'Run IWYU to fix includes', tooltip: 'Run IWYU to fix includes.' };
         action.diagnostics = [diagnostic];
         action.isPreferred = true;
         return action;

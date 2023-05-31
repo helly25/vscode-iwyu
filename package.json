@@ -38,7 +38,7 @@
                 "iwyu.compile_commands": {
                     "type": "string",
                     "default": "${workspaceFolder}/compile_commands.json",
-                    "description": "Path to `compile_commands.json` file (supports `${workspaceFolder}` and `${workspaceRoot}`)."
+                    "markdownDescription": "Path to `compile_commands.json` file (supports `${workspaceFolder}` and `${workspaceRoot}`)."
                 },
                 "iwyu.debug": {
                     "type": "boolean",
@@ -53,12 +53,34 @@
                 "iwyu.filter_iwyu_output": {
                     "type": "string",
                     "default": "",
-                    "description": "Regexp expression filter for iwyu output. This will be used as {hrere} in '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'."
+                    "markdownDescription": "Regexp expression filter for iwyu output. This will be used as {here} in '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'."
                 },
                 "iwyu.fix_includes.py": {
                     "type": "string",
                     "default": "fix_includes.py",
-                    "description": "Path to the `fix_includes.py` executable."
+                    "markdownDescription": "Path to the `fix_includes.py` executable."
+                },
+                "iwyu.diagnostics.iwyu_interval": {
+                    "type": "number",
+                    "default": 1,
+                    "description": "Minimum interval time in seconds between iwyu calls."
+                },
+                "iwyu.diagnostics.only_re": {
+                    "type": "string",
+                    "default": true,
+                    "description": "Only compute diagnostics for files that match this regexp."
+                },
+                "iwyu.diagnostics.scan_min": {
+                    "type": "number",
+                    "default": 100,
+                    "minimum": 10,
+                    "description": "Scan at least this many lines, if no include is found, then stop (min 10). The scanner does not count lines that start with `#` and `//`."
+                },
+                "iwyu.diagnostics.scan_more": {
+                    "type": "number",
+                    "default": 10,
+                    "minimum": 1,
+                    "description": "After finding an include, scan at least this many more lines (min 1)."
                 },
                 "iwyu.include-what-you-use": {
                     "type": "string",
@@ -68,7 +90,7 @@
                 "iwyu.iwyu.additional_params": {
                     "type": "string",
                     "default": "",
-                    "description": "Additional parameters you wish to pass to iwyu."
+                    "markdownDescription": "Additional parameters you wish to pass to iwyu (must be prefixed with `-Xiwyu` in order to affect iwyu, otherwise will affect the compiler)."
                 },
                 "iwyu.iwyu.keep": {
                     "type": [

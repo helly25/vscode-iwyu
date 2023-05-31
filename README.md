@@ -47,14 +47,21 @@ This extension has the following general settings:
   `${workspaceRoot}`).
 - `iwyu.debug`: Enables additional debug output (e.g. the iwyu output).
 - `iwyu.diagnostics`: Enables diagnostic squigglies for unused includes.
-- `iwyu.filter_iwu_output`: Regexp expression filter for iwyu output. This will be used as {hrere} in
+- `iwyu.filter_iwu_output`: Regexp expression filter for iwyu output. This will be used as {here} in
   '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'.
-- `iwyu.fix_includes.py`: Path to the `fix_includes.py` script.
-- `iwyu.include-what-you-use`: Path to the `include-what-you-use` executable.
+- `iwyu.fix_includes.py`: Path to the `fix_includes.py` script (finds the script on path if empty).
+- `iwyu.include-what-you-use`: Path to the `include-what-you-use` executable (finds the executable on path if empty).
+
+The diagnostics can be further configured:
+
+- `iwyu.diagnostics.iwyu_interval`: Minimum interval time in seconds between iwyu calls.
+- `iwyu.diagnostics.only_re`: Only compute diagnostics for files that match this regexp.
+- `iwyu.diagnostics.scan_min`: Scan at least this many lines, if no include is found, then stop.
+- `iwyu.diagnostics.scan_more`: After finding an include, scan at least this many more lines.
 
 The `include-what-you-use` tool can be configured with the following settings (names and description taken from flags):
 
-- `iwyu.iwyu.additional_params`: Additional parameters you wish to pass to iwyu. Must be prefixed with a `-Xiwyu` flag
+- `iwyu.iwyu.additional_params`: Additional parameters you wish to pass to iwyu (must be prefixed with `-Xiwyu` in order to affect iwyu, otherwise will affect the compiler).
 - `iwyu.iwyu.keep`: A glob that tells iwyu to always keep these includes. Can be provided multiple times.
 - `iwyu.iwyu.mapping_file`: Mapping file to use. See
    [IWYU Mappings](https://github.com/include-what-you-use/include-what-you-use/blob/master/docs/IWYUMappings.md) for
