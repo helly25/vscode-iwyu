@@ -310,9 +310,12 @@ function createDiagnostic(doc: vscode.TextDocument, lineOfText: vscode.TextLine,
     // Create range for the `include`.
     const range = new vscode.Range(line, col, line, col + len);
     const diagnostic = new vscode.Diagnostic(
-        range, "IWYU: Unused include: " + include,
-        vscode.DiagnosticSeverity.Information);
-    diagnostic.code = IWYU_DIAGNISTIC;
+        range, "Unused include (fix available)",
+        vscode.DiagnosticSeverity.Warning);
+    diagnostic.source = "iwyu";
+    // The `value` is also used as a filter elsewhere. So it must be a const or
+    // other sync means must be available.
+    diagnostic.code = { value: IWYU_DIAGNISTIC, target: vscode.Uri.parse("https://helly25.com/vscode-iwyu") };
     return diagnostic;
 }
 
@@ -345,6 +348,7 @@ function refreshDiagnostics(configData: ConfigData, doc: vscode.TextDocument, iw
     if (doc.languageId !== "cpp") {
         return;
     }
+    configData.updateConfig();
     configData.updateCompileCommands();
     let compileCommand = configData.getCompileCommand(doc.fileName);
     if (!compileCommand) {
