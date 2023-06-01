@@ -229,7 +229,6 @@ class ConfigData {
 };
 
 function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) {
-    let directory = compileCommand.directory;
     let args = [configData.config.get("fix_includes.py", "fix_includes.py")];
     args.push(configData.config.get("fix.comments", true)
         ? "--comments"
@@ -248,10 +247,11 @@ function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOut
     if (only !== "") {
         args.push("--only_re=" + only);
     }
+    args.push(compileCommand.file);  // Restrict what to change
     let cmd = args.join(" ");
     log(DEBUG, "fix:\n(cat <<EOF...IWYU-output...EOF) | " + cmd);
     cmd = "(cat <<EOF\n" + iwyuOutput + "\nEOF\n) | " + cmd;
-    child_process.exec(cmd, { cwd: directory }, (err: Error | null, stdout: string, _stderr: string) => {
+    child_process.exec(cmd, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, _stderr: string) => {
         if (err) {
             log(ERROR, err.message);
         }
@@ -315,12 +315,11 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
     let iwyu = configData.config.get("include-what-you-use", "include-what-you-use");
     iwyu += " " + args.concat(compileCommand.arguments).join(" ") + " 2>&1";
 
-    let directory = compileCommand.directory;
-    log(DEBUG, "Directory: `" + directory + "`");
+    log(DEBUG, "Directory: `" + compileCommand.directory + "`");
     log(DEBUG, "IWYU Command: " + iwyu);
     compileCommand.iwyuData.running++;
     try {
-        child_process.exec(iwyu, { cwd: directory }, (err: Error | null, stdout: string, stderr: string) => {
+        child_process.exec(iwyu, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, stderr: string) => {
             if (err) {
                 log(ERROR, err.message + stdout);
             } else {
