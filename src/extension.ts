@@ -21,31 +21,6 @@ import * as vscode from 'vscode';
 const IWYU_COMMAND = "iwyu.run";
 const IWYU_DIAGNISTIC = "iwyu";
 
-class IwyuData {
-    output: string = "";
-    updateTime: number = Date.now();
-    running: number = 0;
-};
-
-type CompileCommand = {
-    file: string;
-    command: string;
-    arguments: string[];
-    directory: string;
-    iwyuData: IwyuData;
-};
-
-type CompileCommandsMap = {
-    [id: string]: CompileCommand;
-};
-
-type CompileCommandsData = {
-    compileCommands: CompileCommandsMap;
-    mtimeMs: number;
-    ignoreRe: RegExp | null;
-    onlyRe: RegExp | null;
-};
-
 enum LogSeverity {
     debug = 0,
     info = 1,
@@ -71,6 +46,73 @@ function log(severity: LogSeverity, message: string) {
         case LogSeverity.error: return logger.appendLine("ERROR: " + message);
     }
 }
+
+class IwyuData {
+    output: string = "";
+    updateTime: number = Date.now();
+    running: number = 0;
+};
+
+type CompileCommandRaw = {
+    file: string;
+    command: string;
+    arguments: string[];
+    directory: string;
+};
+
+class CompileCommand {
+    constructor(entry: CompileCommandRaw, directory: string) {
+        this.file = entry.file;
+        this.directory = directory;
+        if (entry.hasOwnProperty("arguments")) {
+            this.command = entry.arguments[0];
+            this.arguments = entry.arguments.slice(1);
+        } else {
+            let args = parseCommandLine(entry.command);
+            this.command = args[0];
+            this.arguments = args.slice(1);
+        }
+        this.iwyuData = new IwyuData;
+    }
+
+    file: string;
+    command: string;
+    arguments: string[];
+    directory: string;
+    iwyuData: IwyuData;
+};
+
+type CompileCommandsMap = {
+    [id: string]: CompileCommand;
+};
+
+class CompileCommandsData {
+    constructor(config: vscode.WorkspaceConfiguration, compileCommandsJson: string, workspacefolder: string) {
+        log(DEBUG, "Parsing: `" + compileCommandsJson + "`");
+        this.mtimeMs = fs.statSync(compileCommandsJson).mtimeMs;
+        this.compileCommands = {};
+        for (let entry of JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"))) {
+            let fname: string = entry.file;
+            let directory: string = workspacefolder;
+            if (entry.hasOwnProperty("directory")) {
+                directory = entry.directory;
+            }
+            if (!path.isAbsolute(fname)) {
+                fname = path.resolve(workspacefolder, directory, fname);
+            }
+            this.compileCommands[fname] = new CompileCommand(entry, directory);
+        }
+        let ignoreRe: string = config.get("fix.ignore_re", "").trim();
+        this.ignoreRe = ignoreRe === "" ? null : new RegExp(ignoreRe);
+        let onlyRe: string = config.get("fix.only_re", "").trim();
+        this.onlyRe = onlyRe === "" ? null : new RegExp(onlyRe);
+    }
+
+    compileCommands: CompileCommandsMap;
+    mtimeMs: number;
+    ignoreRe: RegExp | null;
+    onlyRe: RegExp | null;
+};
 
 // Parses a command line into an array.
 // Splits on spaces as separators while respecting \, ", '.
@@ -182,40 +224,7 @@ class ConfigData {
     }
 
     private parseCompileCommands(): CompileCommandsData {
-        let compileCommandsJson = this.compileCommandsJson();
-        log(DEBUG, "Parsing: `" + compileCommandsJson + "`");
-        let mtimeMs = fs.statSync(compileCommandsJson).mtimeMs;
-        let compileCommands = JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"));
-        let cc: CompileCommandsMap = {};
-        for (let entry of compileCommands) {
-            let fname: string = entry.file;
-            let directory: string = this.workspacefolder;
-            if (entry.hasOwnProperty("directory")) {
-                directory = entry.directory;
-            }
-            if (!path.isAbsolute(fname)) {
-                fname = path.resolve(this.workspacefolder, directory, fname);
-            }
-            cc[fname] = entry;
-            cc[fname].directory = directory;
-            if (entry.hasOwnProperty("arguments")) {
-                cc[fname].command = entry.arguments[0];
-                cc[fname].arguments = entry.arguments.slice(1);
-            } else {
-                let args = parseCommandLine(entry.command);
-                cc[fname].command = args[0];
-                cc[fname].arguments = args.slice(1);
-            }
-            cc[fname].iwyuData = new IwyuData;
-        }
-        let ignoreRe: string = this.config.get("fix.ignore_re", "");
-        let onlyRe = this.config.get("fix.only_re", "");
-        return {
-            compileCommands: cc,
-            mtimeMs: mtimeMs,
-            ignoreRe: ignoreRe === "" ? null : new RegExp(ignoreRe),
-            onlyRe: onlyRe === "" ? null : new RegExp(onlyRe),
-        };
+        return new CompileCommandsData(this.config, this.compileCommandsJson(), this.workspacefolder);
     }
 };
 
@@ -255,10 +264,27 @@ function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOut
     });
 }
 
+function iwyuRunCallback(configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string, callback: ((configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) => void)) {
+    let iwyuFilterOutput = configData.config.get("filter_iwyu_output", "").trim();
+    if (iwyuFilterOutput !== "") {
+        let filtered: string[] = [];
+        const filterRe = new RegExp("#include.*(" + iwyuFilterOutput + ")");
+        iwyuOutput.split("\n").forEach((line: string) => {
+            if (!line.match(filterRe)) {
+                filtered.push(line);
+            }
+        });
+        iwyuOutput = filtered.join("\n");
+        log(DEBUG, "IWYU output filtered:\n" + iwyuOutput);
+    }
+    compileCommand.iwyuData.output = iwyuOutput;
+    compileCommand.iwyuData.updateTime = Date.now();
+    callback(configData, compileCommand, iwyuOutput);
+}
+
 function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callback: ((configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) => void)) {
     let file = compileCommand.file;
     log(DEBUG, "Checking `" + file + "`");
-    let iwyu = configData.config.get("include-what-you-use", "include-what-you-use");
 
     let len = configData.config.get("iwyu.max_line_length", 80);
     let args = [`-Xiwyu --max_line_length=${len}`];
@@ -286,47 +312,25 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
     if (params !== "") {
         args.push(params);
     }
+    let iwyu = configData.config.get("include-what-you-use", "include-what-you-use");
     iwyu += " " + args.concat(compileCommand.arguments).join(" ") + " 2>&1";
 
     let directory = compileCommand.directory;
     log(DEBUG, "Directory: `" + directory + "`");
     log(DEBUG, "IWYU Command: " + iwyu);
-    let iwyuData = compileCommand.iwyuData;
-    iwyuData.running++;
-    let decreased = false;
+    compileCommand.iwyuData.running++;
     try {
         child_process.exec(iwyu, { cwd: directory }, (err: Error | null, stdout: string, stderr: string) => {
             if (err) {
                 log(ERROR, err.message + stdout);
             } else {
                 log(DEBUG, "IWYU output:\n" + stdout);
-            }
-            if (!err) {
-                let iwyuFilterOutput = configData.config.get("filter_iwyu_output", "").trim();
-                if (iwyuFilterOutput !== "") {
-                    let filtered: string[] = [];
-                    const filterRe = new RegExp("#include.*(" + iwyuFilterOutput + ")");
-                    stdout.split("\n").forEach((line: string) => {
-                        if (!line.match(filterRe)) {
-                            filtered.push(line);
-                        }
-                    });
-                    stdout = filtered.join("\n");
-                    log(DEBUG, "IWYU output filtered:\n" + stdout);
-                }
-                iwyuData.output = stdout;
-                iwyuData.updateTime = Date.now();
-                iwyuData.running = Math.max(0, iwyuData.running - 1);
-                decreased = true;
-                callback(configData, compileCommand, stdout);
+                iwyuRunCallback(configData, compileCommand, stdout, callback);
             }
         });
     }
-    catch (error) {
-        if (!decreased) {
-            iwyuData.running = Math.max(0, iwyuData.running - 1);
-        }
-        throw error;
+    finally {
+        compileCommand.iwyuData.running = Math.max(0, compileCommand.iwyuData.running - 1);
     }
 }
 
