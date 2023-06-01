@@ -230,15 +230,14 @@ class ConfigData {
 
 function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) {
     let args = [configData.config.get("fix_includes.py", "fix_includes.py")];
-    args.push(configData.config.get("fix.comments", true)
+
+    args.push("--basedir=" + compileCommand.directory);
+    args.push(configData.config.get("fix.comments", false)
         ? "--comments"
         : "--nocomments");
-    args.push(configData.config.get("fix.safe", true)
-        ? "--safe_headers"
-        : "--nosafe_headers");
-    args.push(configData.config.get("fix.reorder", true)
-        ? "--reorder"
-        : "--noreorder");
+    if (configData.config.get("fix.dry_run", false)) {
+        args.push("--dry_run");
+    }
     let ignore = configData.config.get("fix.ignore_re", "").trim();
     if (ignore !== "") {
         args.push("--ignore_re=" + ignore);
@@ -247,19 +246,35 @@ function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOut
     if (only !== "") {
         args.push("--only_re=" + only);
     }
+    args.push(configData.config.get("fix.reorder", true)
+        ? "--reorder"
+        : "--noreorder");
+    args.push(configData.config.get("fix.safe_headers", false)
+        ? "--safe_headers"
+        : "--nosafe_headers");
+    args.push(configData.config.get("fix.update_comments", false)
+        ? "--update_comments"
+        : "--noupdate_comments");
     args.push(compileCommand.file);  // Restrict what to change
     let cmd = args.join(" ");
     log(DEBUG, "fix:\n(cat <<EOF...IWYU-output...EOF) | " + cmd);
     cmd = "(cat <<EOF\n" + iwyuOutput + "\nEOF\n) | " + cmd;
-    child_process.exec(cmd, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, _stderr: string) => {
+    child_process.exec(cmd, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, stderr: string) => {
         if (err) {
             log(ERROR, err.message);
         }
-        log(INFO, stdout
-            .split(os.EOL)
-            .filter((element: string, _index, _array: string[]) => {
-                return element.includes("IWYU");
-            }).join(os.EOL));
+        if (stderr !== "") {
+            log(ERROR, stderr);
+        }
+        if (configData.config.get("debug", false)) {
+            log(INFO, "fix_includes output:\n" + stdout);
+        } else {
+            log(INFO, stdout
+                .split(os.EOL)
+                .filter((element: string, _index, _array: string[]) => {
+                    return element.includes("IWYU");
+                }).join(os.EOL));
+        }
         log(INFO, "Done `" + compileCommand.file + "`");
     });
 }

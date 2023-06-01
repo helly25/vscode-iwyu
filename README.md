@@ -77,10 +77,12 @@ The `include-what-you-use` tool can be configured with the following settings (n
 The `fix_includes.py` tool can be configered with the following settings (names and description taken from flags):
 
 - `iwyu.fix.comments`: Put comments after the #include lines."
+- `iwyu.fix.dry_run`" Do not actually edit any files; just print diffs. Return code is 0 if no changes are needed, else min(the number of files that would be modified, 100).
 - `iwyu.fix.ignore_re`: Skip editing any file whose name matches this regular expression.
 - `iwyu.fix.only_re`: Skip editing any file whose name does *NOT* match this regular expression.
 - `iwyu.fix.reorder`: Re-order lines relative to other similar lines (e.g. headers relative to other headers).
-- `iwyu.fix.safe`: Do not remove unused #includes/fwd-declares from header files; just add new ones.
+- `iwyu.fix.safe_headers`: Do not remove unused #includes/fwd-declares from header files; just add new ones.
+- `iwyu.fix.update_comments`: Replace *why* comments with the ones provided by IWYU.
 
 Note that settings `iwyu.fix.ignore_re` and `iwyu.fix.only_re` are also used to determine whether execution can be skipped.
 
