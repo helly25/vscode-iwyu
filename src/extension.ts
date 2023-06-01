@@ -21,11 +21,18 @@ import * as vscode from 'vscode';
 const IWYU_COMMAND = "iwyu.run";
 const IWYU_DIAGNISTIC = "iwyu";
 
+class IwyuData {
+    output: string = "";
+    updateTime: number = Date.now();
+    running: number = 0;
+};
+
 type CompileCommand = {
     file: string;
     command: string;
     arguments: string[];
     directory: string;
+    iwyuData: IwyuData;
 };
 
 type CompileCommandsMap = {
@@ -126,9 +133,6 @@ class ConfigData {
     workspacefolder: string;
     config: vscode.WorkspaceConfiguration;
     compileCommandsData: CompileCommandsData;
-    iwyuOutput: string = "";
-    iwyuOutputTime: number = Date.now();
-    iwyuRunning: number = 0;
 
     constructor(workspacefolder: string) {
         this.workspacefolder = workspacefolder;
@@ -136,8 +140,8 @@ class ConfigData {
         this.compileCommandsData = this.parseCompileCommands();
     }
 
-    async waitUntilIwyuFinished(configData: ConfigData) {
-        await until(() => this.iwyuRunning === 0);
+    async waitUntilIwyuFinished(iwyuData: IwyuData) {
+        await until(() => iwyuData.running === 0);
     }
 
     getCompileCommand(fname: string): CompileCommand | null {
@@ -202,6 +206,7 @@ class ConfigData {
                 cc[fname].command = args[0];
                 cc[fname].arguments = args.slice(1);
             }
+            cc[fname].iwyuData = new IwyuData;
         }
         let ignoreRe: string = this.config.get("fix.ignore_re", "");
         let onlyRe = this.config.get("fix.only_re", "");
@@ -235,18 +240,6 @@ function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOut
         args.push("--only_re=" + only);
     }
     let cmd = args.join(" ");
-    let iwyuFilterOutput = configData.config.get("filter_iwyu_output", "").trim();
-    if (iwyuFilterOutput !== "") {
-        let filtered: string[] = [];
-        const filterRe = new RegExp("#include.*(" + iwyuFilterOutput + ")");
-        iwyuOutput.split("\n").forEach((line: string) => {
-            if (!line.match(filterRe)) {
-                filtered.push(line);
-            }
-        });
-        iwyuOutput = filtered.join("\n");
-        log(DEBUG, "IWYU output filtered:\n" + iwyuOutput);
-    }
     log(DEBUG, "fix:\n(cat <<EOF...IWYU-output...EOF) | " + cmd);
     cmd = "(cat <<EOF\n" + iwyuOutput + "\nEOF\n) | " + cmd;
     child_process.exec(cmd, { cwd: directory }, (err: Error | null, stdout: string, _stderr: string) => {
@@ -298,7 +291,8 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
     let directory = compileCommand.directory;
     log(DEBUG, "Directory: `" + directory + "`");
     log(DEBUG, "IWYU Command: " + iwyu);
-    configData.iwyuRunning++;
+    let iwyuData = compileCommand.iwyuData;
+    iwyuData.running++;
     let decreased = false;
     try {
         child_process.exec(iwyu, { cwd: directory }, (err: Error | null, stdout: string, stderr: string) => {
@@ -308,9 +302,21 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
                 log(DEBUG, "IWYU output:\n" + stdout);
             }
             if (!err) {
-                configData.iwyuOutput = stdout;
-                configData.iwyuOutputTime = Date.now();
-                configData.iwyuRunning = Math.max(0, configData.iwyuRunning - 1);
+                let iwyuFilterOutput = configData.config.get("filter_iwyu_output", "").trim();
+                if (iwyuFilterOutput !== "") {
+                    let filtered: string[] = [];
+                    const filterRe = new RegExp("#include.*(" + iwyuFilterOutput + ")");
+                    stdout.split("\n").forEach((line: string) => {
+                        if (!line.match(filterRe)) {
+                            filtered.push(line);
+                        }
+                    });
+                    stdout = filtered.join("\n");
+                    log(DEBUG, "IWYU output filtered:\n" + stdout);
+                }
+                iwyuData.output = stdout;
+                iwyuData.updateTime = Date.now();
+                iwyuData.running = Math.max(0, iwyuData.running - 1);
                 decreased = true;
                 callback(configData, compileCommand, stdout);
             }
@@ -318,7 +324,7 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
     }
     catch (error) {
         if (!decreased) {
-            configData.iwyuRunning = Math.max(0, configData.iwyuRunning - 1);
+            iwyuData.running = Math.max(0, iwyuData.running - 1);
         }
         throw error;
     }
@@ -377,7 +383,7 @@ function getUnusedIncludes(fname: string, iwyuOutput: string): string[] {
 }
 
 function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileCommand, doc: vscode.TextDocument, iwyuDiagnostics: vscode.DiagnosticCollection): void {
-    let iwyuOutput: string = configData.iwyuOutput;
+    let iwyuOutput: string = compileCommand.iwyuData.output;
     const unusedIncludes = getUnusedIncludes(compileCommand.file, iwyuOutput);
     const diagnostics: vscode.Diagnostic[] = [];
     if (unusedIncludes) {
@@ -440,11 +446,12 @@ function iwyuDiagnosticsRefresh(configData: ConfigData, doc: vscode.TextDocument
     if (!compileCommand) {
         return;
     }
-    configData.waitUntilIwyuFinished(configData).then(() => {
+    let iwyuData = compileCommand.iwyuData;
+    configData.waitUntilIwyuFinished(iwyuData).then(() => {
         if (!compileCommand) {
             return;
         }
-        if (configData.iwyuOutput !== "" && configData.iwyuOutputTime + configData.config.get("diagnostics.iwyu_interval", 1000) > Date.now()) {
+        if (iwyuData.output !== "" && iwyuData.updateTime + configData.config.get("diagnostics.iwyu_interval", 1000) > Date.now()) {
             iwyuDiagnosticsScan(configData, compileCommand, doc, iwyuDiagnostics);
         } else {
             iwyuRun(compileCommand, configData, (configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) => iwyuDiagnosticsScan(configData, compileCommand, doc, iwyuDiagnostics));
