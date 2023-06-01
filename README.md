@@ -48,7 +48,8 @@ This extension has the following general settings:
 - `iwyu.debug`: Enables additional debug output (e.g. the iwyu output).
 - `iwyu.diagnostics`: Enables diagnostic squigglies for unused includes.
 - `iwyu.filter_iwu_output`: Regexp expression filter for iwyu output. This will be used as {here} in
-  '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'.
+  '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'. This
+  does not result in removing such headers, it merely prevents adding them, so it won't produce diagnostics for such includes.
 - `iwyu.fix_includes.py`: Path to the `fix_includes.py` script (finds the script on path if empty).
 - `iwyu.include-what-you-use`: Path to the `include-what-you-use` executable (finds the executable on path if empty).
 
