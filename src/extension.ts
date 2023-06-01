@@ -21,6 +21,9 @@ import * as vscode from 'vscode';
 const IWYU_COMMAND = "iwyu.run";
 const IWYU_DIAGNISTIC = "iwyu";
 
+const removeIncludeRe = /#include\s+(<[^>]*>|"[^"]*")/g;
+const includeRe = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
+
 enum LogSeverity {
     debug = 0,
     info = 1,
@@ -47,10 +50,64 @@ function log(severity: LogSeverity, message: string) {
     }
 }
 
+type IncludeInfo = {
+    include: string;
+    line: string;
+};
+
 class IwyuData {
     output: string = "";
     updateTime: number = Date.now();
     running: number = 0;
+    includesToAdd: IncludeInfo[] = [];
+    includesToRemove: IncludeInfo[] = [];
+    includesList: IncludeInfo[] = [];
+
+    update(output: string, fileName: string) {
+        this.output = output;
+        this.updateTime = Date.now();
+        this.includesToAdd = [];
+        this.includesToRemove = [];
+        this.includesList = [];
+        enum Mode { unused, add, remove, list };
+        let mode: Mode = Mode.unused;
+        output.split("\n").forEach((line: string) => {
+            if (line === fileName + " should add these lines:") {
+                mode = Mode.add;
+            } else if (line === fileName + " should remove these lines:") {
+                mode = Mode.remove;
+            } else if (line === "The full include-list for " + fileName + ":") {
+                mode = Mode.list;
+            } else if (line === "") {
+                mode = Mode.unused;
+            } else {
+                if (mode === Mode.remove) {
+                    if (line.startsWith("- ")) {
+                        line = line.substring(2);
+                    } else {
+                        return;
+                    }
+                }
+                let matches = [...line.matchAll(includeRe)];
+                if (matches.length === 0) {
+                    return;
+                }
+                let include = matches[0][1];
+                switch (mode) {
+                    case Mode.add:
+                        this.includesToAdd.push({ include: include, line: line });
+                        break;
+                    case Mode.remove:
+                        this.includesToRemove.push({ include: include, line: line });
+                        break;
+                    case Mode.list:
+                        this.includesList.push({ include: include, line: line });
+                        break;
+                }
+
+            }
+        });
+    }
 };
 
 type CompileCommandRaw = {
@@ -292,8 +349,7 @@ function iwyuRunCallback(configData: ConfigData, compileCommand: CompileCommand,
         iwyuOutput = filtered.join("\n");
         log(DEBUG, "IWYU output filtered:\n" + iwyuOutput);
     }
-    compileCommand.iwyuData.output = iwyuOutput;
-    compileCommand.iwyuData.updateTime = Date.now();
+    compileCommand.iwyuData.update(iwyuOutput, compileCommand.file);
     callback(configData, compileCommand, iwyuOutput);
 }
 
@@ -375,36 +431,10 @@ function createDiagnostic(doc: vscode.TextDocument, lineOfText: vscode.TextLine,
     return diagnostic;
 }
 
-const removeIncludeRe = /#include\s+(<[^>]*>|"[^"]*")/g;
-const includeRe = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
-
-function getUnusedIncludes(fname: string, iwyuOutput: string): string[] {
-    let result: string[] = [];
-    let iwyuLines = iwyuOutput.split("\n");
-    let start = fname + " should remove these lines:";
-    let started = false;
-    for (let i = 0; i < iwyuLines.length; i++) {
-        let line = iwyuLines[i];
-        if (started) {
-            if (line === "") {
-                break;
-            }
-            let matches = [...line.matchAll(removeIncludeRe)];
-            if (matches.length) {
-                result.push(matches[0][1]);
-            }
-        } else if (line === start) {
-            started = true;
-        }
-    }
-    return result;
-}
-
 function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileCommand, doc: vscode.TextDocument, iwyuDiagnostics: vscode.DiagnosticCollection): void {
-    let iwyuOutput: string = compileCommand.iwyuData.output;
-    const unusedIncludes = getUnusedIncludes(compileCommand.file, iwyuOutput);
     const diagnostics: vscode.Diagnostic[] = [];
-    if (unusedIncludes) {
+    const includesToRemove = compileCommand.iwyuData.includesToRemove;
+    if (includesToRemove.length) {
         let scanMin: number = configData.config.get("diagnostics.scan_min", 16);
         let scanMax: number = scanMin;
         let scanMore: number = configData.config.get("diagnostics.scan_more", 1);
@@ -435,14 +465,16 @@ function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileComm
                 scanMax = Math.max(line + 1 + scanMore, scanMax);
             }
             let lineInclude = matches[0][1];
-            let unusedIndex = unusedIncludes.findIndex((v, i, o) => {
-                return v === lineInclude;
+            let unusedIndex = includesToRemove.findIndex((v, i, o) => {
+                return v.include === lineInclude;
             });
             if (unusedIndex >= 0) {
-                let unusedInclude = unusedIncludes[unusedIndex];
+                let unusedInclude = includesToRemove[unusedIndex].include;
                 let start = lineOfText.text.indexOf(unusedInclude);
                 if (start >= 0) {
-                    diagnostics.push(createDiagnostic(doc, lineOfText, line, 0, start + unusedInclude.length, unusedInclude));
+                    let hash = lineOfText.text.indexOf("#");
+                    let len = unusedInclude.length + start - hash;
+                    diagnostics.push(createDiagnostic(doc, lineOfText, line, hash, len, unusedInclude));
                 }
             }
         }
@@ -472,6 +504,7 @@ function iwyuDiagnosticsRefresh(configData: ConfigData, doc: vscode.TextDocument
         if (iwyuData.output !== "" && iwyuData.updateTime + configData.config.get("diagnostics.iwyu_interval", 1000) > Date.now()) {
             iwyuDiagnosticsScan(configData, compileCommand, doc, iwyuDiagnostics);
         } else {
+            // doc.save();
             iwyuRun(compileCommand, configData, (configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) => iwyuDiagnosticsScan(configData, compileCommand, doc, iwyuDiagnostics));
         }
     });
