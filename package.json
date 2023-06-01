@@ -53,7 +53,7 @@
                 "iwyu.filter_iwyu_output": {
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "Regexp expression filter for iwyu output. This will be used as {here} in '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'."
+                    "markdownDescription": "Regexp expression filter for iwyu output. This will be used as {here} in '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'. This does not result in removing such headers, it merely prevents adding them, so it won't produce diagnostics for such includes."
                 },
                 "iwyu.fix_includes.py": {
                     "type": "string",
