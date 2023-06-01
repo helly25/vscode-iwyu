@@ -542,9 +542,10 @@ class IwyuQuickFix implements vscode.CodeActionProvider {
     ];
 
     provideCodeActions(document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationToken): vscode.CodeAction[] {
-        // for each diagnostic entry that has the matching `code`, create a code action command
+        // For each diagnostic entry that has the matching `code`, create a code action command.
+        // But only if the diagnostic fully overlaps with the provided range (de-duplication).
         return context.diagnostics
-            .filter(diagnostic => diagnostic.source === IWYU_DIAGNISTIC)
+            .filter(diagnostic => diagnostic.source === IWYU_DIAGNISTIC && range.contains(diagnostic.range))
             .map(diagnostic => this.createCommandCodeAction(diagnostic));
     }
 
