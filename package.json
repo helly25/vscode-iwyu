@@ -60,6 +60,11 @@
                     "default": "fix_includes.py",
                     "markdownDescription": "Path to the `fix_includes.py` executable."
                 },
+                "iwyu.diagnostics.full_line_squiggles": {
+                    "type": "boolean",
+                    "default": "true",
+                    "description": "Whether to underline the whole line with squiggles or only the actual include part."
+                },
                 "iwyu.diagnostics.iwyu_interval": {
                     "type": "number",
                     "default": 1,

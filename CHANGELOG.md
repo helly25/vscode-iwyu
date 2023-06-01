@@ -32,3 +32,8 @@
     - Change `iwyu.fix.comments` to default to false.
     - Add `iwyu.fix.dry_run` config for additional debugging.
     - Add `iwyu.fix.update_comments` to go along with `iwyu.fix.comments`.
+
+# [0.0.6]
+
+Added new config settings:
+-  `iwyu.diagnostics.full_line_squiggles`: Whether to underline the whole line with squiggles or only the actual include part.

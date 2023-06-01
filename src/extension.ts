@@ -472,9 +472,16 @@ function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileComm
                 let unusedInclude = includesToRemove[unusedIndex].include;
                 let start = lineOfText.text.indexOf(unusedInclude);
                 if (start >= 0) {
-                    let hash = lineOfText.text.indexOf("#");
-                    let len = unusedInclude.length + start - hash;
-                    diagnostics.push(createDiagnostic(doc, lineOfText, line, hash, len, unusedInclude));
+                    let len: number;
+                    if (configData.config.get("diagnostics.full_line_squiggles", true)) {
+                        start = 0;
+                        len = lineOfText.text.length;
+                    } else {
+                        let hash = lineOfText.text.indexOf("#");
+                        len = unusedInclude.length + start - hash;
+                        start = hash;
+                    }
+                    diagnostics.push(createDiagnostic(doc, lineOfText, line, start, len, unusedInclude));
                 }
             }
         }
