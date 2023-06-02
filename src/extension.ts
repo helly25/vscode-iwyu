@@ -24,29 +24,22 @@ const IWYU_DIAGNISTIC = "iwyu";
 const removeIncludeRe = /#include\s+(<[^>]*>|"[^"]*")/g;
 const includeRe = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
 
-enum LogSeverity {
-    debug = 0,
-    info = 1,
-    warn = 2,
-    error = 3,
-};
+const TRACE = vscode.LogLevel.Trace;
+const DEBUG = vscode.LogLevel.Debug;
+const INFO = vscode.LogLevel.Info;
+const WARN = vscode.LogLevel.Warning;
+const ERROR = vscode.LogLevel.Error;
 
-const DEBUG = LogSeverity.debug;
-const INFO = LogSeverity.info;
-const WARN = LogSeverity.warn;
-const ERROR = LogSeverity.error;
+let logger: vscode.LogOutputChannel = vscode.window.createOutputChannel("IWYU", { log: true });
 
-let logger = vscode.window.createOutputChannel("IWYU");
-
-function log(severity: LogSeverity, message: string) {
-    if (severity === DEBUG && !vscode.workspace.getConfiguration("iwyu").get("debug", false)) {
-        return;
-    }
+function log(severity: vscode.LogLevel, message: string, ...args: any[]) {
     switch (severity) {
-        case LogSeverity.debug: return logger.appendLine("DEBUG: " + message);
-        case LogSeverity.info: return logger.appendLine("INFO: " + message);
-        case LogSeverity.warn: return logger.appendLine("WARNING: " + message);
-        case LogSeverity.error: return logger.appendLine("ERROR: " + message);
+        case vscode.LogLevel.Off: return;
+        case vscode.LogLevel.Trace: return logger.debug(message, ...args);
+        case vscode.LogLevel.Debug: return logger.debug(message, ...args);
+        case vscode.LogLevel.Info: return logger.info(message, ...args);
+        case vscode.LogLevel.Warning: return logger.warn(message, ...args);
+        case vscode.LogLevel.Error: return logger.error(message, ...args);
     }
 }
 
@@ -314,7 +307,7 @@ function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOut
         : "--noupdate_comments");
     args.push(compileCommand.file);  // Restrict what to change
     let cmd = args.join(" ");
-    log(DEBUG, "fix:\n(cat <<EOF...IWYU-output...EOF) | " + cmd);
+    log(TRACE, "fix:\n(cat <<EOF...IWYU-output...EOF) | " + cmd);
     cmd = "(cat <<EOF\n" + iwyuOutput + "\nEOF\n) | " + cmd;
     child_process.exec(cmd, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, stderr: string) => {
         if (err) {
@@ -323,7 +316,7 @@ function iwyuFix(configData: ConfigData, compileCommand: CompileCommand, iwyuOut
         if (stderr !== "") {
             log(ERROR, stderr);
         }
-        if (configData.config.get("debug", false)) {
+        if (logger.logLevel <= DEBUG) {
             log(INFO, "fix_includes output:\n" + stdout);
         } else {
             log(INFO, stdout
@@ -347,7 +340,7 @@ function iwyuRunCallback(configData: ConfigData, compileCommand: CompileCommand,
             }
         });
         iwyuOutput = filtered.join("\n");
-        log(DEBUG, "IWYU output filtered:\n" + iwyuOutput);
+        log(TRACE, "IWYU output filtered:\n" + iwyuOutput);
     }
     compileCommand.iwyuData.update(iwyuOutput, compileCommand.file);
     callback(configData, compileCommand, iwyuOutput);
@@ -386,15 +379,15 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
     let iwyu = configData.config.get("include-what-you-use", "include-what-you-use");
     iwyu += " " + args.concat(compileCommand.arguments).join(" ") + " 2>&1";
 
-    log(DEBUG, "Directory: `" + compileCommand.directory + "`");
-    log(DEBUG, "IWYU Command: " + iwyu);
+    log(TRACE, "Directory: `" + compileCommand.directory + "`");
+    log(TRACE, "IWYU Command: " + iwyu);
     compileCommand.iwyuData.running++;
     try {
         child_process.exec(iwyu, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, stderr: string) => {
             if (err) {
                 log(ERROR, err.message + stdout);
             } else {
-                log(DEBUG, "IWYU output:\n" + stdout);
+                log(TRACE, "IWYU output:\n" + stdout);
                 iwyuRunCallback(configData, compileCommand, stdout, callback);
             }
         });

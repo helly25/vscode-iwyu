@@ -45,7 +45,6 @@ This extension has the following general settings:
 
 - `iwyu.compile_commands.json` Path to `compile_commands.json` file (supports `${workspaceFolder}` and
   `${workspaceRoot}`).
-- `iwyu.debug`: Enables additional debug output (e.g. the iwyu output).
 - `iwyu.diagnostics`: Enables diagnostic squigglies for unused includes.
 - `iwyu.filter_iwu_output`: Regexp expression filter for iwyu output. This will be used as {here} in
   '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'. This
@@ -87,10 +86,9 @@ The `fix_includes.py` tool can be configered with the following settings (names 
 
 Note that settings `iwyu.fix.ignore_re` and `iwyu.fix.only_re` are also used to determine whether execution can be skipped.
 
-### How to Correct IWYU Mistakes
+### How to Debug and Correct IWYU Mistakes
 
-The IWYU tool can be debugged using the `iwyu.debug` setting. Once activated, the `IWYU` output window shows the
-detailed command lines used and the output of the tool prior to sending it to the `fix_include.py` script.
+The IWYU tool can be debugged using its output log which supports the `Developer: LogLevel` setting. Once set to `Trace`, the `IWYU` output window shows the detailed command lines used and the output of the tool prior to sending it to the `fix_include.py` script.
 
 #### Simple IWYU output filtering
 
