@@ -55,7 +55,8 @@ This extension has the following general settings:
 The diagnostics can be further configured:
 
 - `iwyu.diagnostics.iwyu_interval`: Minimum interval time in seconds between iwyu calls.
-- `iwyu.diagnostics.full_line_squiggles`: Whether to underline the whole line with squiggles or only the actual include part.
+-  `iwyu.diagnostics.full_line_squiggles`: Whether to underline the whole line with squiggles or only the actual include part. The error is technically only on the actual include (from `#` to eiter `>` or second `"`) but tools commonly underline the whole line and the fix script will also remove the whole line.
+- `iwyu.diagnostics.full_line_squiggles`: Whether to underline the whole line with squiggles or only the actual include part. 
 - `iwyu.diagnostics.only_re`: Only compute diagnostics for files that match this regexp.
 - `iwyu.diagnostics.scan_min`: Scan at least this many lines, if no include is found, then stop.
 - `iwyu.diagnostics.scan_more`: After finding an include, scan at least this many more lines.
