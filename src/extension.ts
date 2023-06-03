@@ -103,22 +103,27 @@ class IwyuData {
     }
 };
 
-type CompileCommandRaw = {
+interface IJsonCompileCommand {
     file: string;
-    command: string;
-    arguments: string[];
-    directory: string;
+    command?: string;
+    arguments?: string[];
+    directory?: string;
+};
+
+interface IJsonCompileCommands {
+    [Symbol.iterator](): IterableIterator<IJsonCompileCommand>
 };
 
 class CompileCommand {
-    constructor(entry: CompileCommandRaw, directory: string) {
+    constructor(entry: IJsonCompileCommand, directory: string) {
         this.file = entry.file;
         this.directory = directory;
-        if (entry.hasOwnProperty("arguments")) {
-            this.command = entry.arguments[0];
-            this.arguments = entry.arguments.slice(1);
+        this.arguments = entry.arguments || [];
+        if (arguments.length) {
+            this.command = this.arguments[0];
+            this.arguments = this.arguments.slice(1);
         } else {
-            let args = parseCommandLine(entry.command);
+            let args = parseCommandLine(entry.command || "");
             this.command = args[0];
             this.arguments = args.slice(1);
         }
@@ -141,12 +146,10 @@ class CompileCommandsData {
         log(DEBUG, "Parsing: `" + compileCommandsJson + "`");
         this.mtimeMs = fs.statSync(compileCommandsJson).mtimeMs;
         this.compileCommands = {};
-        for (let entry of JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"))) {
+        let json = <IJsonCompileCommands>JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"));
+        for (let entry of json) {
             let fname: string = entry.file;
-            let directory: string = workspacefolder;
-            if (entry.hasOwnProperty("directory")) {
-                directory = entry.directory;
-            }
+            let directory: string = entry.directory || workspacefolder;
             if (!path.isAbsolute(fname)) {
                 fname = path.resolve(workspacefolder, directory, fname);
             }
