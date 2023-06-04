@@ -213,7 +213,7 @@ export function parseCommandLine(cmd: string): string[] {
 }
 
 async function until(conditionFunction: (() => boolean), intervalMs: number = 100) {
-    const poll = (resolve: ((value?: undefined) => void), reject?: (reason?: any) => void) => {
+    const poll = (resolve: ((value?: undefined) => void), _reject?: (reason?: any) => void) => {
         if (conditionFunction()) {
             resolve();
         } else {
@@ -387,6 +387,9 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
     compileCommand.iwyuData.running++;
     try {
         child_process.exec(iwyu, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, stderr: string) => {
+            if (stderr) {
+                log(ERROR, "stderr:\n" + stderr);
+            }
             if (err) {
                 log(ERROR, err.message + stdout);
             } else {
@@ -416,7 +419,7 @@ function iwyuCommand(configData: ConfigData) {
     }
 }
 
-function createDiagnostic(doc: vscode.TextDocument, lineOfText: vscode.TextLine, line: number, col: number, len: number, include: string): vscode.Diagnostic {
+function createDiagnostic(_doc: vscode.TextDocument, _lineOfText: vscode.TextLine, line: number, col: number, len: number): vscode.Diagnostic {
     // Create range for the `include`.
     const range = new vscode.Range(line, col, line, col + len);
     const diagnostic = new vscode.Diagnostic(
@@ -461,7 +464,7 @@ function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileComm
                 scanMax = Math.max(line + 1 + scanMore, scanMax);
             }
             let lineInclude = matches[0][1];
-            let unusedIndex = includesToRemove.findIndex((v, i, o) => {
+            let unusedIndex = includesToRemove.findIndex((v, _i, _o) => {
                 return v.include === lineInclude;
             });
             if (unusedIndex >= 0) {
@@ -477,7 +480,7 @@ function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileComm
                         len = unusedInclude.length + start - hash;
                         start = hash;
                     }
-                    diagnostics.push(createDiagnostic(doc, lineOfText, line, start, len, unusedInclude));
+                    diagnostics.push(createDiagnostic(doc, lineOfText, line, start, len));
                 }
             }
         }
@@ -508,7 +511,7 @@ function iwyuDiagnosticsRefresh(configData: ConfigData, doc: vscode.TextDocument
             iwyuDiagnosticsScan(configData, compileCommand, doc, iwyuDiagnostics);
         } else {
             // doc.save();
-            iwyuRun(compileCommand, configData, (configData: ConfigData, compileCommand: CompileCommand, iwyuOutput: string) => iwyuDiagnosticsScan(configData, compileCommand, doc, iwyuDiagnostics));
+            iwyuRun(compileCommand, configData, (configData: ConfigData, compileCommand: CompileCommand, _iwyuOutput: string) => iwyuDiagnosticsScan(configData, compileCommand, doc, iwyuDiagnostics));
         }
     });
 }
@@ -537,7 +540,7 @@ class IwyuQuickFix implements vscode.CodeActionProvider {
         vscode.CodeActionKind.QuickFix
     ];
 
-    provideCodeActions(document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationToken): vscode.CodeAction[] {
+    provideCodeActions(_document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, _token: vscode.CancellationToken): vscode.CodeAction[] {
         // For each diagnostic entry that has the matching `code`, create a code action command.
         // But only if the diagnostic fully overlaps with the provided range (de-duplication).
         return context.diagnostics
