@@ -21,14 +21,13 @@ import * as vscode from 'vscode';
 const IWYU_COMMAND = "iwyu.run";
 const IWYU_DIAGNISTIC = "iwyu";
 
-const removeIncludeRe = /#include\s+(<[^>]*>|"[^"]*")/g;
 const includeRe = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
 
-const TRACE = vscode.LogLevel.Trace;
-const DEBUG = vscode.LogLevel.Debug;
-const INFO = vscode.LogLevel.Info;
-const WARN = vscode.LogLevel.Warning;
-const ERROR = vscode.LogLevel.Error;
+export const TRACE = vscode.LogLevel.Trace;
+export const DEBUG = vscode.LogLevel.Debug;
+export const INFO = vscode.LogLevel.Info;
+export const WARN = vscode.LogLevel.Warning;
+export const ERROR = vscode.LogLevel.Error;
 
 let logger: vscode.LogOutputChannel = vscode.window.createOutputChannel("IWYU", { log: true });
 
@@ -82,10 +81,11 @@ class IwyuData {
                     }
                 }
                 let matches = [...line.matchAll(includeRe)];
-                if (matches.length === 0) {
+                let match = matches.length > 0 ? matches[0] : null;
+                let include = match ? match[1] || "" : "";
+                if (include === "") {
                     return;
                 }
-                let include = matches[0][1];
                 switch (mode) {
                     case Mode.add:
                         this.includesToAdd.push({ include: include, line: line });
@@ -119,12 +119,12 @@ class CompileCommand {
         this.file = entry.file;
         this.directory = directory;
         this.arguments = entry.arguments || [];
-        if (arguments.length) {
-            this.command = this.arguments[0];
+        if (this.arguments.length) {
+            this.command = this.arguments[0] || "";
             this.arguments = this.arguments.slice(1);
         } else {
             let args = parseCommandLine(entry.command || "");
-            this.command = args[0];
+            this.command = args[0] || "";
             this.arguments = args.slice(1);
         }
         this.iwyuData = new IwyuData;
@@ -255,7 +255,7 @@ class ConfigData {
             log(INFO, "Ignoring (does not match `iwyu.fix.only_re`): " + fname);
             return null;
         }
-        return this.compileCommandsData.compileCommands[fname];
+        return this.compileCommandsData.compileCommands[fname] || null;
     }
 
     compileCommandsJson(): string {
@@ -457,18 +457,23 @@ function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileComm
                 }
             }
             let matches = [...lineOfText.text.matchAll(includeRe)];
-            if (matches.length === 0) {
+            let match = matches.length > 0 ? matches[0] : null;
+            let lineInclude = match ? match[1] || "" : "";
+            if (lineInclude === "") {
                 continue;
             }
             if (line >= scanMin) {
                 scanMax = Math.max(line + 1 + scanMore, scanMax);
             }
-            let lineInclude = matches[0][1];
             let unusedIndex = includesToRemove.findIndex((v, _i, _o) => {
                 return v.include === lineInclude;
             });
             if (unusedIndex >= 0) {
-                let unusedInclude = includesToRemove[unusedIndex].include;
+                let includeToRemove = includesToRemove[unusedIndex];
+                if (!includeToRemove) {
+                    continue;
+                }
+                let unusedInclude = includeToRemove.include;
                 let start = lineOfText.text.indexOf(unusedInclude);
                 if (start >= 0) {
                     let len: number;
@@ -559,7 +564,7 @@ class IwyuQuickFix implements vscode.CodeActionProvider {
 
 export function activate(context: vscode.ExtensionContext) {
     log(INFO, "Extension activated");
-    let workspacefolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0 ?
+    let workspacefolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0 && vscode.workspace.workspaceFolders[0] ?
         vscode.workspace.workspaceFolders[0].uri.fsPath || "" : "";
     if (workspacefolder === "") {
         log(ERROR, "No workspace folder set. Not activating IWYU.");

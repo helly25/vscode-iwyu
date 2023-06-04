@@ -9,9 +9,11 @@
 		"sourceMap": true,
 		"rootDir": "src",
         "strict": true, /* enable all strict type-checking options */
-		/* Additional Checks */
-        "noImplicitReturns": true,
+        /* Additional Checks */
         "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "noUncheckedIndexedAccess": true,
+        "noUnusedLocals": true,
         "noUnusedParameters": true
 	}
 }
