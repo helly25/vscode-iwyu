@@ -21,7 +21,7 @@ import * as vscode from 'vscode';
 const IWYU_COMMAND = "iwyu.run";
 const IWYU_DIAGNISTIC = "iwyu";
 
-const includeRe = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
+const INCLUDE_RE = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
 
 export const TRACE = vscode.LogLevel.Trace;
 export const DEBUG = vscode.LogLevel.Debug;
@@ -80,9 +80,7 @@ class IwyuData {
                         return;
                     }
                 }
-                let matches = [...line.matchAll(includeRe)];
-                let match = matches.length > 0 ? matches[0] : null;
-                let include = match ? match[1] || "" : "";
+                let include = [...line.matchAll(INCLUDE_RE)][0]?.[1] ?? "";
                 if (include === "") {
                     return;
                 }
@@ -419,7 +417,7 @@ function iwyuCommand(configData: ConfigData) {
     }
 }
 
-function createDiagnostic(_doc: vscode.TextDocument, _lineOfText: vscode.TextLine, line: number, col: number, len: number): vscode.Diagnostic {
+function createDiagnostic(line: number, col: number, len: number): vscode.Diagnostic {
     // Create range for the `include`.
     const range = new vscode.Range(line, col, line, col + len);
     const diagnostic = new vscode.Diagnostic(
@@ -456,37 +454,36 @@ function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileComm
                     }
                 }
             }
-            let matches = [...lineOfText.text.matchAll(includeRe)];
-            let match = matches.length > 0 ? matches[0] : null;
-            let lineInclude = match ? match[1] || "" : "";
-            if (lineInclude === "") {
+            let include = [...lineOfText.text.matchAll(INCLUDE_RE)][0]?.[1] ?? "";
+            if (include === "") {
                 continue;
             }
             if (line >= scanMin) {
                 scanMax = Math.max(line + 1 + scanMore, scanMax);
             }
             let unusedIndex = includesToRemove.findIndex((v, _i, _o) => {
-                return v.include === lineInclude;
+                return v.include === include;
             });
-            if (unusedIndex >= 0) {
-                let includeToRemove = includesToRemove[unusedIndex];
-                if (!includeToRemove) {
-                    continue;
+            if (unusedIndex < 0) {
+                // `findIndex` will return -1 which would be interpreted as 1 from the back.
+                continue;
+            }
+            let unusedInclude = includesToRemove[unusedIndex]?.include ?? "";
+            if (!unusedInclude) {
+                continue;
+            }
+            let start = lineOfText.text.indexOf(unusedInclude);
+            if (start >= 0) {
+                let len: number;
+                if (configData.config.get("diagnostics.full_line_squiggles", true)) {
+                    start = 0;
+                    len = lineOfText.text.length;
+                } else {
+                    let hash = lineOfText.text.indexOf("#");
+                    len = unusedInclude.length + start - hash;
+                    start = hash;
                 }
-                let unusedInclude = includeToRemove.include;
-                let start = lineOfText.text.indexOf(unusedInclude);
-                if (start >= 0) {
-                    let len: number;
-                    if (configData.config.get("diagnostics.full_line_squiggles", true)) {
-                        start = 0;
-                        len = lineOfText.text.length;
-                    } else {
-                        let hash = lineOfText.text.indexOf("#");
-                        len = unusedInclude.length + start - hash;
-                        start = hash;
-                    }
-                    diagnostics.push(createDiagnostic(doc, lineOfText, line, start, len));
-                }
+                diagnostics.push(createDiagnostic(line, start, len));
             }
         }
     }
@@ -564,8 +561,7 @@ class IwyuQuickFix implements vscode.CodeActionProvider {
 
 export function activate(context: vscode.ExtensionContext) {
     log(INFO, "Extension activated");
-    let workspacefolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0 && vscode.workspace.workspaceFolders[0] ?
-        vscode.workspace.workspaceFolders[0].uri.fsPath || "" : "";
+    let workspacefolder = vscode.workspace?.workspaceFolders?.at(0)?.uri.fsPath ?? "";
     if (workspacefolder === "") {
         log(ERROR, "No workspace folder set. Not activating IWYU.");
         return;
