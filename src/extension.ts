@@ -18,7 +18,8 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-const IWYU_COMMAND = "iwyu.run";
+const IWYU_COMMAND_ONE = "iwyu.run.one";
+const IWYU_COMMAND_ALL = "iwyu.run.all";
 const IWYU_DIAGNISTIC = "iwyu";
 
 const INCLUDE_RE = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
@@ -159,8 +160,8 @@ class CompileCommandsData {
         this.onlyRe = onlyRe === "" ? null : new RegExp(onlyRe);
     }
 
-    compileCommands: CompileCommandsMap;
-    mtimeMs: number;
+    compileCommands: CompileCommandsMap = {};
+    mtimeMs: number = 0;
     ignoreRe: RegExp | null;
     onlyRe: RegExp | null;
 };
@@ -401,7 +402,7 @@ function iwyuRun(compileCommand: CompileCommand, configData: ConfigData, callbac
     }
 }
 
-function iwyuCommand(configData: ConfigData) {
+function iwyuCommandOne(configData: ConfigData) {
     if (!vscode.window.activeTextEditor) {
         log(ERROR, "No editor.");
         return;
@@ -413,6 +414,38 @@ function iwyuCommand(configData: ConfigData) {
     let compileCommand = configData.getCompileCommand(editor.document.fileName);
     if (compileCommand) {
         editor.document.save();
+        iwyuRun(compileCommand, configData, iwyuFix);
+    }
+}
+
+function iwyuCommandAll(configData: ConfigData) {
+    configData.updateConfig();
+    configData.updateCompileCommands();
+    vscode.workspace.saveAll();
+    let root = path.normalize(configData.workspacefolder);
+    log(INFO, "Fixing all project files.");
+    for (let fname in configData.compileCommandsData.compileCommands) {
+        if (!fname.startsWith(configData.workspacefolder)) {
+            continue;
+        }
+        // Use `get...` to respect `iwyu.fix.ignore_re` and `iwyu.fix.only_re`.
+        let compileCommand = configData.getCompileCommand(fname);
+        if (!compileCommand) {
+            continue;
+        }
+        // Compute normalized relative path.
+        let relFile = fname;
+        relFile = relFile.substring(root.length);
+        if (relFile.startsWith("/") || relFile.startsWith(path.sep)) {
+            relFile = relFile.substring(1);
+        }
+        // Compute the absolute first directory part, or just the filename.
+        let paths = relFile.split(path.sep);
+        let first = path.join(root, paths[0] || "");
+        // Exclude it if it is a symbolic link (e.g. exclude 'external').
+        if (fs.lstatSync(first).isSymbolicLink()) {
+            continue;
+        }
         iwyuRun(compileCommand, configData, iwyuFix);
     }
 }
@@ -552,7 +585,7 @@ class IwyuQuickFix implements vscode.CodeActionProvider {
 
     private createCommandCodeAction(diagnostic: vscode.Diagnostic): vscode.CodeAction {
         const action = new vscode.CodeAction('Run IWYU to fix includes.', vscode.CodeActionKind.QuickFix);
-        action.command = { command: IWYU_COMMAND, title: 'Run IWYU to fix includes', tooltip: 'Run IWYU to fix includes.' };
+        action.command = { command: IWYU_COMMAND_ONE, title: 'Run IWYU to fix includes', tooltip: 'Run IWYU to fix includes.' };
         action.diagnostics = [diagnostic];
         action.isPreferred = true;
         return action;
@@ -579,7 +612,8 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND, () => { iwyuCommand(configData); }));
+    context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND_ONE, () => { iwyuCommandOne(configData); }));
+    context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND_ALL, () => { iwyuCommandAll(configData); }));
 }
 
 export function deactivate() { }

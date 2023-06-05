@@ -7,7 +7,7 @@
         "Include What You Use",
         "include-what-you-use"
     ],
-    "version": "0.0.6",
+    "version": "0.0.7",
     "publisher": "helly25",
     "license": "Apache-2.0",
     "repository": {
@@ -28,8 +28,12 @@
     "contributes": {
         "commands": [
             {
-                "command": "iwyu.run",
-                "title": "Include What You Use"
+                "command": "iwyu.run.one",
+                "title": "Include What You Use (current file)"
+            },
+            {
+                "command": "iwyu.run.all",
+                "title": "Include What You Use (all targets)"
             }
         ],
         "configuration": {
@@ -39,11 +43,6 @@
                     "type": "string",
                     "default": "${workspaceFolder}/compile_commands.json",
                     "markdownDescription": "Path to `compile_commands.json` file (supports `${workspaceFolder}` and `${workspaceRoot}`)."
-                },
-                "iwyu.debug": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Enables additional debug output (e.g. the iwyu output)."
                 },
                 "iwyu.diagnostics": {
                     "type": "boolean",

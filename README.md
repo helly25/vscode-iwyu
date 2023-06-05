@@ -14,9 +14,11 @@ This extension integrates [include-what-you-use](https://github.com/include-what
 
 ![IWYU](https://helly25.com/wp-content/uploads/2023/05/iwyu-animated.gif)
 
-2) Manually optimize the include files for the current C/C++ file by pressing `cmd-shit-P` + `I` + `W` + `Y` + `U`. The extension will then lookup the current editor's file in the compile_commands.json file. If found it will then run the include-what-you-use tool. If that is successful it will then call the fix_includes.py script to apply the changes.
+2) Manually optimize the include files for the current C/C++ file by pressing `cmd-shit-P` + `I` + `W` + `Y` + `U` for command "`Include What You Use (current file)`". The extension will then lookup the current editor's file in the compile_commands.json file. If found it will then run the include-what-you-use tool. If that is successful it will then call the fix_includes.py script to apply the changes.
 
 ![IWYU](https://helly25.com/wp-content/uploads/2023/05/iwyu.png)
+
+3) Manually optimize all project files using command "`Include What You Use (all targets)`". This is a slow operation as it goes over all files in the `compile-commands.json` one after the other. It only triggers on source files whose first directory (or the file itself if directly in the project workspace root) is not a symbolic link (which for instance excludes `external` or `bazel-out`). The settings `iwyu.fix.ignore_re` and `iwyu.fix.only_re` are respected upfront and prevent unnecessary triggering.
 
 ## Requirements
 

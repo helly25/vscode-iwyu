@@ -40,3 +40,6 @@ Added new config settings:
 Use LogOutputChannel instead of OutputChannel for better log output control.
 - Also remove setting `iwyu.debug`.
 
+# [0.0.7]
+
+Add new command `Include What You Use (all targets)`. See README.md for details.
