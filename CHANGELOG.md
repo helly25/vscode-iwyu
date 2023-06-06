@@ -37,7 +37,7 @@
 
 Added new config settings:
 -  `iwyu.diagnostics.full_line_squiggles`: Whether to underline the whole line with squiggles or only the actual include part. The error is technically only on the actual include (from `#` to eiter `>` or second `"`) but tools commonly underline the whole line and the fix script will also remove the whole line.
-Use LogOutputChannel instead of OutputChannel for better log output control.
+- Use LogOutputChannel instead of OutputChannel for better log output control.
 - Also remove setting `iwyu.debug`.
 
 # [0.0.7]
