@@ -91,7 +91,7 @@ Note that settings `iwyu.fix.ignore_re` and `iwyu.fix.only_re` are also used to 
 
 ### How to Debug and Correct IWYU Mistakes
 
-The IWYU tool can be debugged using its output log which supports the `Developer: LogLevel` setting. Once set to `Trace`, the `IWYU` output window shows the detailed command lines used and the output of the tool prior to sending it to the `fix_include.py` script.
+The IWYU tool can be debugged using its output log which supports the `Developer: Set Log Level` setting. Once set to `Trace`, the `IWYU` output window shows the detailed command lines used and the output of the tool prior to sending it to the `fix_include.py` script.
 
 #### Simple IWYU output filtering
 
