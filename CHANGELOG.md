@@ -43,3 +43,7 @@ Added new config settings:
 # [0.0.7]
 
 Add new command `Include What You Use (all targets)`. See README.md for details.
+
+# [0.0.8]
+
+Fix settings default for `iwyu.iwyu.keep`.

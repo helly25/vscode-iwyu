@@ -97,9 +97,7 @@
                     "markdownDescription": "Additional parameters you wish to pass to iwyu (must be prefixed with `-Xiwyu` in order to affect iwyu, otherwise will affect the compiler)."
                 },
                 "iwyu.iwyu.keep": {
-                    "type": [
-                        "array"
-                    ],
+                    "type": "array",
                     "default": [],
                     "description": "A glob that tells iwyu to always keep these includes."
                 },
