@@ -36,7 +36,7 @@ brew install include-what-you-use
 
 ## Alternatives
 
-This extension is a simple wrapper around the `include what you use tool` and similar to [pokowaka-iwyu](https://marketplace.visualstudio.com/items?itemName=pokowaka.pokowaka-iwyu). The reason for this extension is its debug and
+This extension is a simple wrapper around the `include what you use` tool and similar to [pokowaka-iwyu](https://marketplace.visualstudio.com/items?itemName=pokowaka.pokowaka-iwyu). The reason for this extension is its debug and
 filter capability.
 
 `Clang` has an extra tool [clang-include-fixer](https://clang.llvm.org/extra/clang-include-fixer.html).
