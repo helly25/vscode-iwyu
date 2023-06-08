@@ -66,7 +66,7 @@
                 },
                 "iwyu.diagnostics.iwyu_interval": {
                     "type": "number",
-                    "default": 1,
+                    "default": 5,
                     "description": "Minimum interval time in seconds between iwyu calls."
                 },
                 "iwyu.diagnostics.only_re": {
