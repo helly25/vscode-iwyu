@@ -47,7 +47,4 @@ Add new command `Include What You Use (all targets)`. See README.md for details.
 # [0.0.8]
 
 Fix settings default for `iwyu.iwyu.keep`.
-
-# [0.0.9]
-
 Change default for `iwyu.diagnostics.iwyu_interval` to 5 (seconds).
