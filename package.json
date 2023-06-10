@@ -72,7 +72,7 @@
                 "iwyu.diagnostics.include_guard": {
                     "type": "string",
                     "default": "",
-                    "description": "If this is non empty, then include guards are checked. The relative filename is denoted as '${file}' (as-is) or '${FILE}' (uppercase) , so in order to require include guards that end in a '_ thi must be set to '${file}_'."
+                    "description": "If this is non empty, then include guards are checked. The relative filename is denoted as '${file}' (as-is) or '${FILE}' (uppercase), so in order to require all caps include guards that end in a '_' this must be set to '${FILE}_' (e.g. 'path/foo.h' then becomes 'PATH_FOO_H_')."
                 },
                 "iwyu.diagnostics.iwyu_interval": {
                     "type": "number",
@@ -119,7 +119,7 @@
                 "iwyu.iwyu.max_line_length": {
                     "type": "integer",
                     "default": 80,
-                    "description": "Maximum line length for includes.Note that this only affects comments and alignment thereof, the maximum line length can still be exceeded with long file names"
+                    "description": "Maximum line length for includes.Note that this only affects comments and alignment thereof, the maximum line length can still be exceeded with long file names."
                 },
                 "iwyu.iwyu.no_default_mappings": {
                     "type": "boolean",
@@ -144,7 +144,7 @@
                 "iwyu.fix.dry_run": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Do not actually edit any files; just print diffs. Return code is 0 if no changes are needed, else min(the number of files that would be modified, 100)"
+                    "description": "Do not actually edit any files; just print diffs on the log OUTPUT."
                 },
                 "iwyu.fix.ignore_re": {
                     "type": "string",
@@ -169,7 +169,7 @@
                 "iwyu.fix.update_comments": {
                     "type": "boolean",
                     "default": false,
-                    "markdownDescription": "Replace *why* comments with the ones provided by IWYU"
+                    "markdownDescription": "Replace *why* comments with the ones provided by IWYU."
                 }
             }
         }
