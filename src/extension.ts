@@ -20,12 +20,12 @@ import * as vscode from 'vscode';
 
 const IWYU_COMMAND_ONE = "iwyu.run.one";
 const IWYU_COMMAND_ALL = "iwyu.run.all";
-const IWYU_DIAGNISTIC_UNUSED_HEADER = "iwyu.unused_header";
-const IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_IFNDEF = "iwyu.include_guard_bad_ifndef";
-const IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_DEFINE = "iwyu.include_guard_bad_define";
-const IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_ENDIF = "iwyu.include_guard_bad_endif";
-const IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_IFNDEF = "iwyu.include_guard_missing_ifndef";
-const IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_ENDIF = "iwyu.include_guard_missing_endif";
+const IWYU_DIAGNISTIC_UNUSED_HEADER = "iwyu_unused_header";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_IFNDEF = "iwyu_include_guard_bad_ifndef";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_DEFINE = "iwyu_include_guard_bad_define";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_ENDIF = "iwyu_include_guard_bad_endif";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_IFNDEF = "iwyu_include_guard_missing_ifndef";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_ENDIF = "iwyu_include_guard_missing_endif";
 
 const INCLUDE_RE = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
 const INC_GUARD_IFNDEF = /^(\s*#\s*ifndef)(?:\s+)([_a-zA-Z][_a-zA-Z0-9]*)(\s.*)?$/g;
@@ -468,7 +468,7 @@ function createDiagnostic(line: number, col: number, len: number, message: strin
         range, message,
         vscode.DiagnosticSeverity.Warning);
     diagnostic.source = source;
-    diagnostic.code = { value: "iwyu", target: vscode.Uri.parse("https://helly25.com/vscode-iwyu") };
+    diagnostic.code = { value: "iwyu", target: vscode.Uri.parse("https://helly25.com/vscode-iwyu#" + source) };
     return diagnostic;
 }
 
@@ -508,7 +508,7 @@ function addIncludeGuardRef(doc: vscode.TextDocument, diagnostic: vscode.Diagnos
 }
 
 function includeGuard(configData: ConfigData, fileName: string, directory: string): string {
-    let guard = configData.config.get("diagnostic.include_guard", "");
+    let guard = configData.config.get("diagnostics.include_guard", "");
     if (guard === "") {
         return "";
     }
