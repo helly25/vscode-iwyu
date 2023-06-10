@@ -71,7 +71,7 @@
                 },
                 "iwyu.diagnostics.include_guard": {
                     "type": "string",
-                    "default": "$(FILE)_",
+                    "default": "",
                     "description": "If this is non empty, then include guards are checked. The relative filename is denoted as '${file}' (as-is) or '${FILE}' (uppercase) , so in order to require include guards that end in a '_ thi must be set to '${file}_'."
                 },
                 "iwyu.diagnostics.iwyu_interval": {
