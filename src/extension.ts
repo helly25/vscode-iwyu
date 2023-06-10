@@ -508,6 +508,10 @@ function addIncludeGuardRef(doc: vscode.TextDocument, diagnostic: vscode.Diagnos
 }
 
 function includeGuard(configData: ConfigData, fileName: string, directory: string): string {
+    let guard = configData.config.get("diagnostic.include_guard", "");
+    if (guard === "") {
+        return "";
+    }
     if (fileName.startsWith(directory)) {
         fileName = fileName.substring(directory.length);
     }
@@ -515,7 +519,7 @@ function includeGuard(configData: ConfigData, fileName: string, directory: strin
         fileName = fileName.substring(1);
     }
     fileName = fileName.replace(/[^_a-zA-Z0-9]/g, "_");
-    return configData.config.get("diagnostic.include_guard", "${FILE}_")
+    return guard
         .replace("${file}", fileName)
         .replace("${FILE}", fileName.toUpperCase());
 }
@@ -528,9 +532,7 @@ function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileComm
     let scanMore: number = configData.config.get("diagnostics.scan_more", 10);
     let expectedIncludeGuard: string = includeGuard(configData, doc.fileName, compileCommand.directory);
     let headerRe = configData.compileCommandsData.headerRe;
-    let checkIncludeGuard: boolean = headerRe !== null
-        && path.extname(doc.fileName).match(headerRe) !== null
-        && configData.config.get("diagnostics.include_guard", "").length > 0;
+    let checkIncludeGuard: boolean = headerRe !== null && expectedIncludeGuard !== "";
     let includeGuardLine: number = -1;
     let pragmaOnceLine: number = -1;
     let includeStart: number = -1;
