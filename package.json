@@ -7,7 +7,7 @@
         "Include What You Use",
         "include-what-you-use"
     ],
-    "version": "0.0.9",
+    "version": "0.0.10",
     "publisher": "helly25",
     "license": "Apache-2.0",
     "repository": {
@@ -64,6 +64,16 @@
                     "default": "true",
                     "description": "Whether to underline the whole line with squiggles or only the actual include part."
                 },
+                "iwyu.diagnostics.include_guard_files": {
+                    "type": "string",
+                    "default": "[.](h|hh|hpp|hxx)$",
+                    "description": "Regular expression for files that should be checked for include guards."
+                },
+                "iwyu.diagnostics.include_guard": {
+                    "type": "string",
+                    "default": "$(FILE)_",
+                    "description": "If this is non empty, then include guards are checked. The relative filename is denoted as '${file}' (as-is) or '${FILE}' (uppercase) , so in order to require include guards that end in a '_ thi must be set to '${file}_'."
+                },
                 "iwyu.diagnostics.iwyu_interval": {
                     "type": "number",
                     "default": 5,
@@ -76,7 +86,7 @@
                 },
                 "iwyu.diagnostics.scan_min": {
                     "type": "number",
-                    "default": 100,
+                    "default": 200,
                     "minimum": 10,
                     "description": "Scan at least this many lines, if no include is found, then stop (min 10). The scanner does not count lines that start with `#` and `//`."
                 },

@@ -20,6 +20,9 @@ This extension integrates [include-what-you-use](https://github.com/include-what
 
 3) Manually optimize all project files using command "`Include What You Use (all targets)`". This is a slow operation as it goes over all files in the `compile-commands.json` one after the other. It only triggers on source files whose first directory (or the file itself if directly in the project workspace root) is not a symbolic link (which for instance excludes `external` or `bazel-out`). The settings `iwyu.fix.ignore_re` and `iwyu.fix.only_re` are respected upfront and prevent unnecessary triggering.
 
+4) The extension will check headers for presence and correctness of include guards. Include guards will only be searched for in files matching `iwyu.diagnostics.include_guard_files`. In those files the guards are derived from
+the `iwyu.diagnostics.include_guard` setting. The value `${file}` will be replaced with the filename as is and `${FILENAME}` will be replaced with the filename in all upper case. All other chars are used as is. So the default value  `${FILE}_` adds a '_' to the relative filename.
+
 ## Requirements
 
 This extension assumes C++ development using clang tools and compilers and a `compile_commands.json` database that

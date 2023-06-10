@@ -20,9 +20,18 @@ import * as vscode from 'vscode';
 
 const IWYU_COMMAND_ONE = "iwyu.run.one";
 const IWYU_COMMAND_ALL = "iwyu.run.all";
-const IWYU_DIAGNISTIC = "iwyu";
+const IWYU_DIAGNISTIC_UNUSED_HEADER = "iwyu.unused_header";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_IFNDEF = "iwyu.include_guard_bad_ifndef";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_DEFINE = "iwyu.include_guard_bad_define";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_ENDIF = "iwyu.include_guard_bad_endif";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_IFNDEF = "iwyu.include_guard_missing_ifndef";
+const IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_ENDIF = "iwyu.include_guard_missing_endif";
 
 const INCLUDE_RE = /^\s*#\s*include\s+(<[^>]*>|"[^"]*")/g;
+const INC_GUARD_IFNDEF = /^(\s*#\s*ifndef)(?:\s+)([_a-zA-Z][_a-zA-Z0-9]*)(\s.*)?$/g;
+const INC_GUARD_DEFINE = /^(\s*#\s*define)(?:\s+)([_a-zA-Z][_a-zA-Z0-9]*)(\s.*)?$/g;
+const INC_GUARD_ENDIF = /^(\s*#\s*endif)(?:\s+\/\/\s+([_a-zA-Z][_a-zA-Z0-9]*)(\s.*)?)?$/g;
+const PRAGMA_ONCE = /^\s*#\s*pragma\s+once(\s*(\/\/.*))?$/g;
 
 export const TRACE = vscode.LogLevel.Trace;
 export const DEBUG = vscode.LogLevel.Debug;
@@ -158,12 +167,15 @@ class CompileCommandsData {
         this.ignoreRe = ignoreRe === "" ? null : new RegExp(ignoreRe);
         let onlyRe: string = config.get("fix.only_re", "").trim();
         this.onlyRe = onlyRe === "" ? null : new RegExp(onlyRe);
+        let headerRe: string = config.get("diagnostics.include_guard_files", "[.](h|hh|hpp|hxx)$").trim();
+        this.headerRe = headerRe === "" ? null : new RegExp(headerRe);
     }
 
     compileCommands: CompileCommandsMap = {};
     mtimeMs: number = 0;
     ignoreRe: RegExp | null;
     onlyRe: RegExp | null;
+    headerRe: RegExp | null;
 };
 
 // Parses a command line into an array.
@@ -450,47 +462,136 @@ function iwyuCommandAll(configData: ConfigData) {
     }
 }
 
-function createDiagnostic(line: number, col: number, len: number): vscode.Diagnostic {
-    // Create range for the `include`.
+function createDiagnostic(line: number, col: number, len: number, message: string, source: string): vscode.Diagnostic {
     const range = new vscode.Range(line, col, line, col + len);
     const diagnostic = new vscode.Diagnostic(
-        range, "Unused include (fix available)",
+        range, message,
         vscode.DiagnosticSeverity.Warning);
-    diagnostic.source = IWYU_DIAGNISTIC;
+    diagnostic.source = source;
     diagnostic.code = { value: "iwyu", target: vscode.Uri.parse("https://helly25.com/vscode-iwyu") };
     return diagnostic;
+}
+
+function createDiagnosticUnusedInclude(line: number, col: number, len: number): vscode.Diagnostic {
+    return createDiagnostic(line, col, len, "Unused include (fix available)", IWYU_DIAGNISTIC_UNUSED_HEADER);
+}
+
+function createDiagnosticIncludeGuardBadIfndef(line: number, col: number, len: number, expectedIncludeGuard: string): vscode.Diagnostic {
+    return createDiagnostic(line, col, len, badIncludeGuard("#ifndef " + expectedIncludeGuard), IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_IFNDEF);
+}
+
+function createDiagnosticIncludeGuardBadDefine(line: number, col: number, len: number, expectedIncludeGuard: string): vscode.Diagnostic {
+    return createDiagnostic(line, col, len, badIncludeGuard("#define " + expectedIncludeGuard), IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_DEFINE);
+}
+
+function createDiagnosticIncludeGuardBadEndif(line: number, col: number, len: number, expectedIncludeGuard: string): vscode.Diagnostic {
+    return createDiagnostic(line, col, len, badIncludeGuard("#endif  // " + expectedIncludeGuard), IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_ENDIF);
+}
+
+function createDiagnosticIncludeGuardMissingIfndef(line: number, col: number, len: number, expectedIncludeGuard: string): vscode.Diagnostic {
+    return createDiagnostic(line, col, len, badIncludeGuard("#ifndef " + expectedIncludeGuard), IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_IFNDEF);
+}
+
+function createDiagnosticIncludeGuardMissingEndif(line: number, col: number, len: number, expectedIncludeGuard: string): vscode.Diagnostic {
+    return createDiagnostic(line, col, len, badIncludeGuard("#endif  // " + expectedIncludeGuard), IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_ENDIF);
+}
+
+function badIncludeGuard(expected: string) {
+    return "Missing include guard (fix available), expected: '" + expected + "'";
+}
+
+function addIncludeGuardRef(doc: vscode.TextDocument, diagnostic: vscode.Diagnostic, includeGuardLine: number): vscode.Diagnostic {
+    let range = new vscode.Range(includeGuardLine, 0, includeGuardLine, doc.lineAt(includeGuardLine).text.length);
+    let related = new vscode.DiagnosticRelatedInformation(new vscode.Location(doc.uri, range), "Location of include guard.");
+    diagnostic.relatedInformation = [related];
+    return diagnostic;
+}
+
+function includeGuard(configData: ConfigData, fileName: string, directory: string): string {
+    if (fileName.startsWith(directory)) {
+        fileName = fileName.substring(directory.length);
+    }
+    if (fileName.startsWith("/") || fileName.startsWith(path.sep)) {
+        fileName = fileName.substring(1);
+    }
+    fileName = fileName.replace(/[^_a-zA-Z0-9]/g, "_");
+    return configData.config.get("diagnostic.include_guard", "${FILE}_")
+        .replace("${file}", fileName)
+        .replace("${FILE}", fileName.toUpperCase());
 }
 
 function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileCommand, doc: vscode.TextDocument, iwyuDiagnostics: vscode.DiagnosticCollection): void {
     const diagnostics: vscode.Diagnostic[] = [];
     const includesToRemove = compileCommand.iwyuData.includesToRemove;
-    if (includesToRemove.length) {
-        let scanMin: number = configData.config.get("diagnostics.scan_min", 16);
-        let scanMax: number = scanMin;
-        let scanMore: number = configData.config.get("diagnostics.scan_more", 1);
-        for (let line = 0; line < scanMax && line < doc.lineCount; line++) {
-            const lineOfText = doc.lineAt(line);
-            if (line < scanMin) {
-                if (lineOfText.isEmptyOrWhitespace) {
+    let scanMin: number = configData.config.get("diagnostics.scan_min", 100);
+    let scanMax: number = scanMin;
+    let scanMore: number = configData.config.get("diagnostics.scan_more", 10);
+    let expectedIncludeGuard: string = includeGuard(configData, doc.fileName, compileCommand.directory);
+    let headerRe = configData.compileCommandsData.headerRe;
+    let checkIncludeGuard: boolean = headerRe !== null
+        && path.extname(doc.fileName).match(headerRe) !== null
+        && configData.config.get("diagnostics.include_guard", "").length > 0;
+    let includeGuardLine: number = -1;
+    let pragmaOnceLine: number = -1;
+    let includeStart: number = -1;
+    let firstLineLength = 0;
+    for (let line = 0; line < scanMax && line < doc.lineCount; line++) {
+        const lineOfText = doc.lineAt(line);
+        if (line === 0) {
+            firstLineLength = lineOfText.text.length;
+        }
+        if (line < scanMin) {
+            if (lineOfText.isEmptyOrWhitespace) {
+                scanMax++;
+                continue;
+            }
+            let p = lineOfText.firstNonWhitespaceCharacterIndex;
+            if (p >= 0) {
+                if (lineOfText.text.substring(p, p + 2) === "//") {
                     scanMax++;
                     continue;
                 }
-                let p = lineOfText.firstNonWhitespaceCharacterIndex;
-                if (p >= 0) {
-                    if (lineOfText.text.substring(p, p + 2) === "//") {
-                        scanMax++;
-                        continue;
-                    }
-                    if (lineOfText.text[p] === "#") {
-                        scanMax++;
-                        // no continue, must scan the line
-                    }
+                if (lineOfText.text[p] === "#") {
+                    scanMax++;
+                    // no continue, must scan the line
                 }
             }
-            let include = [...lineOfText.text.matchAll(INCLUDE_RE)][0]?.[1] ?? "";
-            if (include === "") {
-                continue;
+        }
+        if (checkIncludeGuard) {
+            if (includeGuardLine === -1) {
+                let guard = [...lineOfText.text.matchAll(INC_GUARD_IFNDEF)][0]?.[2] ?? "";
+                if (guard !== "") {
+                    includeGuardLine = line;
+                    if (guard !== expectedIncludeGuard) {
+                        diagnostics.push(createDiagnosticIncludeGuardBadIfndef(
+                            line, 0, lineOfText.text.length, expectedIncludeGuard));
+                    }
+                }
+                let once = [...lineOfText.text.matchAll(PRAGMA_ONCE)];
+                if (once.length > 0) {
+                    includeGuardLine = line;
+                    pragmaOnceLine = line;
+                }
             }
+            if (pragmaOnceLine === -1 && line === includeGuardLine + 1) {
+                let guard = [...lineOfText.text.matchAll(INC_GUARD_DEFINE)][0]?.[2] ?? "";
+                if (guard !== expectedIncludeGuard) {
+                    // The empty string would indicate "#define" is missing or has no value.
+                    diagnostics.push(addIncludeGuardRef(
+                        doc,
+                        createDiagnosticIncludeGuardBadDefine(line, 0, lineOfText.text.length, expectedIncludeGuard),
+                        includeGuardLine));
+                }
+            }
+        }
+        let include = [...lineOfText.text.matchAll(INCLUDE_RE)][0]?.[1] ?? "";
+        if (include === "") {
+            continue;
+        }
+        if (includeStart === -1) {
+            includeStart = line;
+        }
+        if (includesToRemove.length) {
             if (line >= scanMin) {
                 scanMax = Math.max(line + 1 + scanMore, scanMax);
             }
@@ -516,7 +617,37 @@ function iwyuDiagnosticsScan(configData: ConfigData, compileCommand: CompileComm
                     len = unusedInclude.length + start - hash;
                     start = hash;
                 }
-                diagnostics.push(createDiagnostic(line, start, len));
+                diagnostics.push(createDiagnosticUnusedInclude(line, start, len));
+            }
+        }
+    }
+    if (checkIncludeGuard) {
+        if (includeGuardLine === -1) {
+            diagnostics.push(createDiagnosticIncludeGuardMissingIfndef(0, 0, firstLineLength, expectedIncludeGuard));
+        } else {
+            let includeGuardEndLine: number = -1;
+            let lastLine: number = doc.lineCount - 1;
+            for (let line = lastLine; line > 0 && line > lastLine - 10; line--) {
+                const lineOfText = doc.lineAt(line);
+                let match = [...lineOfText.text.matchAll(INC_GUARD_ENDIF)] ?? [];
+                if (match.length === 0) {
+                    continue;
+                }
+                let guard = match[0]?.[2] || "";
+                includeGuardEndLine = line;
+                if (guard !== expectedIncludeGuard) {
+                    diagnostics.push(
+                        addIncludeGuardRef(
+                            doc,
+                            createDiagnosticIncludeGuardBadEndif(
+                                line, 0, lineOfText.text.length, expectedIncludeGuard),
+                            includeGuardLine));
+                }
+                break;
+            }
+            if (includeGuardEndLine === -1) {
+                diagnostics.push(createDiagnosticIncludeGuardMissingEndif(
+                    lastLine, 0, doc.lineAt(lastLine).text.length, expectedIncludeGuard));
             }
         }
     }
@@ -575,21 +706,91 @@ class IwyuQuickFix implements vscode.CodeActionProvider {
         vscode.CodeActionKind.QuickFix
     ];
 
-    provideCodeActions(_document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, _token: vscode.CancellationToken): vscode.CodeAction[] {
+    constructor(configData: ConfigData) {
+        this.configData = configData;
+    }
+
+    provideCodeActions(doc: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, _token: vscode.CancellationToken): vscode.CodeAction[] {
         // For each diagnostic entry that has the matching `code`, create a code action command.
         // But only if the diagnostic fully overlaps with the provided range (de-duplication).
         return context.diagnostics
-            .filter(diagnostic => diagnostic.source === IWYU_DIAGNISTIC && range.contains(diagnostic.range))
-            .map(diagnostic => this.createCommandCodeAction(diagnostic));
+            .filter(diagnostic => this.filterDiagnostics(diagnostic, range))
+            .map(diagnostic => this.createCommandCodeAction(doc, diagnostic));
     }
 
-    private createCommandCodeAction(diagnostic: vscode.Diagnostic): vscode.CodeAction {
-        const action = new vscode.CodeAction('Run IWYU to fix includes.', vscode.CodeActionKind.QuickFix);
-        action.command = { command: IWYU_COMMAND_ONE, title: 'Run IWYU to fix includes', tooltip: 'Run IWYU to fix includes.' };
+    private filterDiagnostics(diagnostic: vscode.Diagnostic, range: vscode.Range | vscode.Selection): boolean {
+        switch (diagnostic.source) {
+            case IWYU_DIAGNISTIC_UNUSED_HEADER:
+                return range.contains(diagnostic.range);
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_IFNDEF:
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_DEFINE:
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_ENDIF:
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_IFNDEF:
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_ENDIF:
+                return true;
+        }
+        return false;
+    }
+
+    private createCommandCodeAction(doc: vscode.TextDocument, diagnostic: vscode.Diagnostic): vscode.CodeAction {
+        switch (diagnostic.source) {
+            default:  // Make compiler happy. The filter above checks that no default case happens here.
+            case IWYU_DIAGNISTIC_UNUSED_HEADER: {
+                const action = new vscode.CodeAction('Run IWYU to fix includes.', vscode.CodeActionKind.QuickFix);
+                action.command = { command: IWYU_COMMAND_ONE, title: 'Run IWYU to fix includes', tooltip: 'Run IWYU to fix includes.' };
+                action.diagnostics = [diagnostic];
+                action.isPreferred = true;
+                return action;
+            }
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_DEFINE:
+                return this.fixIncludeGuard(doc, diagnostic, INC_GUARD_DEFINE, false, "#define", " ", false);
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_ENDIF:
+                return this.fixIncludeGuard(doc, diagnostic, INC_GUARD_ENDIF, false, "#endif", "  // ", false);
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_BAD_IFNDEF:
+                return this.fixIncludeGuard(doc, diagnostic, INC_GUARD_IFNDEF, false, "#ifndef", " ", false);
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_ENDIF:
+                return this.fixIncludeGuard(doc, diagnostic, INC_GUARD_ENDIF, true, "#endif", "  // ", false);
+            case IWYU_DIAGNISTIC_INCLUDE_GUARD_MISSING_IFNDEF:
+                return this.fixIncludeGuard(doc, diagnostic, INC_GUARD_IFNDEF, true, "#ifndef", " ", true);
+        }
+    }
+
+    private fixIncludeGuard(doc: vscode.TextDocument, diagnostic: vscode.Diagnostic, regexp: RegExp, missing: boolean, type: string, separator: string, addDefine: boolean): vscode.CodeAction {
+        const action = new vscode.CodeAction('Fix include guard.', vscode.CodeActionKind.QuickFix);
         action.diagnostics = [diagnostic];
         action.isPreferred = true;
+        action.edit = new vscode.WorkspaceEdit();
+        let line = diagnostic.range.start.line;
+        let text = doc.lineAt(line).text;
+        let newText = "";
+        let guard = [...text.matchAll(regexp)][0];
+        let cc = this.configData.getCompileCommand(doc.fileName);
+        let expected = includeGuard(this.configData, doc.fileName, cc?.directory || "");
+        let edits: Array<vscode.TextEdit> = [];
+        let eol = "\n";
+        if (doc.eol === vscode.EndOfLine.CRLF) {
+            eol = "\r\n";
+        }
+        if (addDefine) {
+            let lastLine: number = doc.lineCount;
+            edits.push(vscode.TextEdit.insert(new vscode.Position(lastLine, 0), eol + "#endif  // " + expected + eol));
+        }
+        if (guard) {
+            missing = false;
+            newText = guard[1] + separator + expected + (guard[3] || "");
+        } else {
+            newText = type + separator + expected;
+        }
+        if (addDefine) {
+            newText += eol + "#define " + expected;
+        }
+        edits.push(missing ? vscode.TextEdit.insert(new vscode.Position(line, 0), newText + eol)
+            : vscode.TextEdit.replace(new vscode.Range(line, 0, line, text.length), newText));
+        action.edit.set(doc.uri, edits);
         return action;
     }
+
+    private configData: ConfigData;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -607,7 +808,7 @@ export function activate(context: vscode.ExtensionContext) {
     subscribeToDocumentChanges(configData, context, iwyuDiagnostics);
 
     context.subscriptions.push(
-        vscode.languages.registerCodeActionsProvider('cpp', new IwyuQuickFix(), {
+        vscode.languages.registerCodeActionsProvider('cpp', new IwyuQuickFix(configData), {
             providedCodeActionKinds: IwyuQuickFix.providedCodeActionKinds
         })
     );
