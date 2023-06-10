@@ -48,3 +48,10 @@ Add new command `Include What You Use (all targets)`. See README.md for details.
 
 Fix settings default for `iwyu.iwyu.keep`.
 Change default for `iwyu.diagnostics.iwyu_interval` to 5 (seconds).
+
+# [0.0.9]
+
+Add support for include guard detection and correction.
+Add new settings:
+. `iwyu.diagnostics.include_guard_files`: `Regular expression for files that should be checked for include guards."
+. `iwyu.diagnostics.include_guard`: If this is non empty, then include guards are checked. The relative filename is denoted as '${file}' (as-is) or '${FILE}' (uppercase) , so in order to require include guards that end in a '_ thi must be set to '${file}_'.
