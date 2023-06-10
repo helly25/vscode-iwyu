@@ -63,3 +63,5 @@ Disable include guard checks by default. Seeting `iwyu.diagnostics.include_guard
 # [0.0.11]
 
 Only check `iwyu.diagnostics.include_guard` once per file.
+Fix lookup of setting `iwyu.diagnostics.include_guard`.
+Provide a direct link for diagnostics to the documentation.
