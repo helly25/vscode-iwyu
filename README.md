@@ -65,7 +65,7 @@ This extension has the following general settings:
 The diagnostics can be further configured:
 
 - `iwyu.diagnostics.full_line_squiggles`: Whether to underline the whole line with squiggles or only the actual include part. The error is technically only on the actual include (from `#` to eiter `>` or second `"`) but tools commonly underline the whole line and the fix script will also remove the whole line.
-- `include_guard_files`: Regular expression for files that should be checked for include guards.
+- `iwyu.diagnostics.include_guard_files`: Regular expression for files that should be checked for include guards.
 - `iwyu.diagnostics.include_guard`: If this is non empty, then include guards are checked. The relative filename is denoted as '${file}' (as-is) or '${FILE}' (uppercase), so in order to require all caps include guards that end in a '_' this must be set to '${FILE}_' (e.g. 'path/foo.h' then becomes 'PATH_FOO_H_').
 - `iwyu.diagnostics.iwyu_interval`: Minimum interval time in seconds between iwyu calls.
 - `iwyu.diagnostics.only_re`: Only compute diagnostics for files that match this regexp.

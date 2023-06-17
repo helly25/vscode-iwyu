@@ -69,3 +69,7 @@ Provide a direct link for diagnostics to the documentation.
 # [0.0.12]
 
 Update README.md.
+
+# [0.0.13]
+
+Fix include guard trigger.
