@@ -72,4 +72,9 @@ Update README.md.
 
 # [0.0.13]
 
+Bad release
+
+# [0.0.14]
+
 Fix include guard trigger.
+Refactor most extension code to use class Extension.
