@@ -78,3 +78,5 @@ Bad release
 
 Fix include guard trigger.
 Refactor most extension code to use class Extension.
+
+# [0.0.15]
