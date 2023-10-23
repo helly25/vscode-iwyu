@@ -152,16 +152,23 @@ type CompileCommandsMap = {
 class CompileCommandsData {
     constructor(config: vscode.WorkspaceConfiguration, compileCommandsJson: string, workspacefolder: string) {
         log(DEBUG, "Parsing: `" + compileCommandsJson + "`");
-        this.mtimeMs = fs.statSync(compileCommandsJson).mtimeMs;
         this.compileCommands = {};
-        let json = <IJsonCompileCommands>JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"));
-        for (let entry of json) {
-            let fname: string = entry.file;
-            let directory: string = entry.directory || workspacefolder;
-            if (!path.isAbsolute(fname)) {
-                fname = path.resolve(workspacefolder, directory, fname);
+        try {
+            this.mtimeMs = fs.statSync(compileCommandsJson).mtimeMs;
+            let json = <IJsonCompileCommands>JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"));
+            for (let entry of json) {
+                let fname: string = entry.file;
+                let directory: string = entry.directory || workspacefolder;
+                if (!path.isAbsolute(fname)) {
+                    fname = path.resolve(workspacefolder, directory, fname);
+                }
+                this.compileCommands[fname] = new CompileCommand(entry, directory);
             }
-            this.compileCommands[fname] = new CompileCommand(entry, directory);
+        }
+        catch(err) {
+            let error = "Bad `iwyu.compile_commands` setting";
+            log(ERROR, error + "'" + compileCommandsJson + "': " + err);
+            vscode.window.showErrorMessage(error + ". Please check your settings and ensure the `compile_commands.json` file is in the specified location.<br/><br/>" + err);
         }
         let ignoreRe: string = config.get("fix.ignore_re", "").trim();
         this.ignoreRe = ignoreRe === "" ? null : new RegExp(ignoreRe);
@@ -271,7 +278,7 @@ class ConfigData {
 
     compileCommandsJson(): string {
         return this.config
-            .get("compile_commands.json", "${workspaceFolder}/compile_commands.json")
+            .get("compile_commands", "${workspaceFolder}/XXX/compile_commands.json")
             .replace("${workspaceRoot}", this.workspacefolder)
             .replace("${workspaceFolder}", this.workspacefolder);
     }
@@ -281,9 +288,15 @@ class ConfigData {
     }
 
     updateCompileCommands() {
-        let stats = fs.statSync(this.compileCommandsJson());
-        if (stats.mtimeMs !== this.compileCommandsData.mtimeMs) {
-            this.compileCommandsData = this.parseCompileCommands();
+        let compileCommandsJson = this.compileCommandsJson();
+        try {
+            let stats = fs.statSync(compileCommandsJson);
+            if (stats.mtimeMs !== this.compileCommandsData.mtimeMs) {
+                this.compileCommandsData = this.parseCompileCommands();
+            }
+        }
+        catch(err) {
+            log(ERROR, "Bad `iwyu.compile_commands` setting: '" + compileCommandsJson + "': " + err);
         }
     }
 
@@ -490,8 +503,13 @@ class Extension {
             let paths = relFile.split(path.sep);
             let first = path.join(root, paths[0] || "");
             // Exclude it if it is a symbolic link (e.g. exclude 'external').
-            if (fs.lstatSync(first).isSymbolicLink()) {
-                continue;
+            try {
+                if (fs.lstatSync(first).isSymbolicLink()) {
+                    continue;
+                }
+            }
+            catch (err) {
+                // Ignore error.
             }
             this.iwyuRun(compileCommand, this.iwyuFix);
         }
