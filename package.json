@@ -44,11 +44,6 @@
                     "default": "${workspaceFolder}/compile_commands.json",
                     "markdownDescription": "Path to `compile_commands.json` file (supports `${workspaceFolder}` and `${workspaceRoot}`)."
                 },
-                "iwyu.diagnostics": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Enables diagnostic squigglies for unused includes."
-                },
                 "iwyu.filter_iwyu_output": {
                     "type": "string",
                     "default": "",
@@ -95,6 +90,11 @@
                     "default": 10,
                     "minimum": 1,
                     "description": "After finding an include, scan at least this many more lines (min 1)."
+                },
+                "iwyu.diagnostics.unused_includes": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enables diagnostic squigglies for unused includes."
                 },
                 "iwyu.include-what-you-use": {
                     "type": "string",

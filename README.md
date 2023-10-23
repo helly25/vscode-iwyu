@@ -55,7 +55,6 @@ This extension has the following general settings:
 
 - `iwyu.compile_commands.json` Path to `compile_commands.json` file (supports `${workspaceFolder}` and
   `${workspaceRoot}`).
-- `iwyu.diagnostics`: Enables diagnostic squigglies for unused includes.
 - `iwyu.filter_iwu_output`: Regexp expression filter for iwyu output. This will be used as {here} in
   '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'. This
   does not result in removing such headers, it merely prevents adding them, so it won't produce diagnostics for such includes.
@@ -71,6 +70,7 @@ The diagnostics can be further configured:
 - `iwyu.diagnostics.only_re`: Only compute diagnostics for files that match this regexp.
 - `iwyu.diagnostics.scan_min`: Scan at least this many lines, if no include is found, then stop.
 - `iwyu.diagnostics.scan_more`: After finding an include, scan at least this many more lines.
+- `iwyu.diagnostics.unused_includes`: Enables diagnostic squigglies for unused includes.
 
 The `include-what-you-use` tool can be configured with the following settings (names and description taken from flags):
 

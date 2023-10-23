@@ -65,7 +65,7 @@ class IwyuData {
     includesToRemove: IncludeInfo[] = [];
     includesList: IncludeInfo[] = [];
 
-    update(output: string, fileName: string) {
+    update(output: string, fileName: string, enableDiagnostics: boolean) {
         this.output = output;
         this.updateTime = Date.now();
         this.includesToAdd = [];
@@ -84,6 +84,9 @@ class IwyuData {
                 mode = Mode.unused;
             } else {
                 if (mode === Mode.remove) {
+                    if (!enableDiagnostics) {
+                        return;
+                    }
                     if (line.startsWith("- ")) {
                         line = line.substring(2);
                     } else {
@@ -250,6 +253,12 @@ class ConfigData {
     constructor(workspacefolder: string) {
         this.workspacefolder = workspacefolder;
         this.config = vscode.workspace.getConfiguration("iwyu");
+        if (this.config.has("diagnostics")) {
+            // If the setting `iwyu.diagnostics` is present, then delete it everywhere as it can interfere.
+            vscode.workspace.getConfiguration("iwyu").update("diagnostics", undefined, vscode.ConfigurationTarget.Global);
+            vscode.workspace.getConfiguration("iwyu").update("diagnostics", undefined, vscode.ConfigurationTarget.Workspace);
+            vscode.workspace.getConfiguration("iwyu").update("diagnostics", undefined, vscode.ConfigurationTarget.WorkspaceFolder);
+        }
         this.compileCommandsData = this.parseCompileCommands();
     }
 
@@ -404,7 +413,8 @@ class Extension {
             iwyuOutput = filtered.join("\n");
             log(TRACE, "IWYU output filtered:\n" + iwyuOutput);
         }
-        compileCommand.iwyuData.update(iwyuOutput, compileCommand.file);
+        let enableDiagnostics = this.configData.config.get("iwyu.diagnostics.unused_includes", true);
+        compileCommand.iwyuData.update(iwyuOutput, compileCommand.file, enableDiagnostics);
         callback.call(this, compileCommand, iwyuOutput);
     }
 

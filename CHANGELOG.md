@@ -2,6 +2,11 @@
 
 # [0.0.15]
 
+Fixed https://github.com/helly25/vscode-iwyu/issues/2. When the `compile_commands.json` fiel cannot be found the extension would not be able to initialize.
+Fixed and issue with the actual setting name for the `compile_commands.json` file. The correct setting name is
+`iwyu.compile_commands` as documented.
+Renamed settings `iwyu.diagnostics` to `iwyu.diagnostics.unused_includes`.
+
 # [0.0.14]
 
 Fix include guard trigger.
