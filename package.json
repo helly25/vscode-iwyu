@@ -76,7 +76,7 @@
                 },
                 "iwyu.diagnostics.only_re": {
                     "type": "string",
-                    "default": true,
+                    "default": "",
                     "description": "Only compute diagnostics for files that match this regexp."
                 },
                 "iwyu.diagnostics.scan_min": {
