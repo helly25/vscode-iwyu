@@ -376,7 +376,9 @@ class Extension {
         args.push(this.configData.config.get("fix.update_comments", false)
             ? "--update_comments"
             : "--noupdate_comments");
-        args.push(compileCommand.file);  // Restrict what to change
+        if (!this.configData.config.get("fix.fix_header", false)) {
+            args.push(compileCommand.file);  // Restrict what to change
+        }
         let cmd = args.join(" ");
         log(TRACE, "fix:\n(cat <<EOF...IWYU-output...EOF) | " + cmd);
         cmd = "(cat <<EOF\n" + iwyuOutput + "\nEOF\n) | " + cmd;

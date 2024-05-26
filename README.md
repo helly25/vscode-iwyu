@@ -95,6 +95,7 @@ The `fix_includes.py` tool can be configered with the following settings (names 
 - `iwyu.fix.reorder`: Re-order lines relative to other similar lines (e.g. headers relative to other headers).
 - `iwyu.fix.safe_headers`: Do not remove unused #includes/fwd-declares from header files; just add new ones.
 - `iwyu.fix.update_comments`: Replace *why* comments with the ones provided by IWYU.
+- `iwyu.fix.fix_header`: Fix includes in the corresponding header for a given implementation file (e.g. foo.h when fixing foo.cpp).
 
 Note that settings `iwyu.fix.ignore_re` and `iwyu.fix.only_re` are also used to determine whether execution can be skipped.
 
