@@ -297,13 +297,10 @@ class ConfigData {
     compileCommandsJson(): string {
         let compileCommandsJsonDefault = "${workspaceFolder}/compile_commands.json";
         let compileCommandsJson = this.config.get("compile_commands", compileCommandsJsonDefault);
-        log(DEBUG, "Got compileCommandsJson = '" + compileCommandsJson + "'.");
         let isDefault = compileCommandsJson === compileCommandsJsonDefault;
-        log(DEBUG, "IsDefault: " + isDefault);
         compileCommandsJson = this.replaceWorkspaceVars(compileCommandsJson);
         try {
             fs.statSync(compileCommandsJson);
-            log(DEBUG, "Using compileCommandsJson = '" + compileCommandsJson + "'.");
         }
         catch (err) {
             if (isDefault) {
@@ -311,13 +308,13 @@ class ConfigData {
                     let test = this.replaceWorkspaceVars("${workspaceFolder}/build/compile_commands.json");
                     fs.statSync(test);
                     compileCommandsJson = test;
-                    log(DEBUG, "Using alternative compileCommandsJson = '" + compileCommandsJson + "'.");
                 }
                 catch (err) {
                     // Ignore, caught later.
                 }
             }
         }
+        log(DEBUG, "Using compileCommandsJson = '" + compileCommandsJson + "'.");
         return compileCommandsJson;
     }
 
