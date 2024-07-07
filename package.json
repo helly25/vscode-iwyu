@@ -41,7 +41,7 @@
             "properties": {
                 "iwyu.compile_commands": {
                     "type": "string",
-                    "default": "${workspaceFolder}/compile_commands.json",
+                    "default": "${workspaceFolder}/build/compile_commands.json",
                     "markdownDescription": "Path to `compile_commands.json` file (supports `${workspaceFolder}` and `${workspaceRoot}`)."
                 },
                 "iwyu.filter_iwyu_output": {

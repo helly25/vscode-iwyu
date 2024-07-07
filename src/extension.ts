@@ -287,7 +287,7 @@ class ConfigData {
 
     compileCommandsJson(): string {
         return this.config
-            .get("compile_commands", "${workspaceFolder}/XXX/compile_commands.json")
+            .get("compile_commands", "${workspaceFolder}/build/compile_commands.json")
             .replace("${workspaceRoot}", this.workspacefolder)
             .replace("${workspaceFolder}", this.workspacefolder);
     }
