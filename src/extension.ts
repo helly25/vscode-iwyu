@@ -286,9 +286,11 @@ class ConfigData {
     }
 
     replaceWorkspaceVars(input: string): string {
-        return input.replace("${workspaceRoot}", this.workspacefolder)
-            .replace("${workspaceFolder}", this.workspacefolder);
-            // .replace("${fileWorkspaceFolder}", this.getXXXXXX);
+        input = input.replace("${workspaceRoot}", this.workspacefolder);
+        input = input.replace("${workspaceFolder}", this.workspacefolder);
+        let uri = vscode.window.activeTextEditor?.document?.uri;
+        input = input.replace("${fileWorkspaceFolder}", uri ? uri.fsPath : "");
+        return input;
     }
 
 
