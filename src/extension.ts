@@ -289,7 +289,8 @@ class ConfigData {
         input = input.replace("${workspaceRoot}", this.workspacefolder);
         input = input.replace("${workspaceFolder}", this.workspacefolder);
         let uri = vscode.window.activeTextEditor?.document?.uri;
-        input = input.replace("${fileWorkspaceFolder}", uri ? uri.fsPath : "");
+        let path = uri ? vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath : "";
+        input = input.replace("${fileWorkspaceFolder}", typeof path === "string" ? path : "");
         return input;
     }
 
