@@ -293,7 +293,6 @@ class ConfigData {
         return input;
     }
 
-
     compileCommandsJson(): string {
         let compileCommandsJsonDefault = "${workspaceFolder}/compile_commands.json";
         let compileCommandsJson = this.config.get("compile_commands", compileCommandsJsonDefault);
