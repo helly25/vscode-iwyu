@@ -249,6 +249,7 @@ class ConfigData {
     workspacefolder: string;
     config: vscode.WorkspaceConfiguration;
     compileCommandsData: CompileCommandsData;
+    compileCommandsJsonPath: string = "";
 
     constructor(workspacefolder: string) {
         this.workspacefolder = workspacefolder;
@@ -296,26 +297,27 @@ class ConfigData {
 
     compileCommandsJson(): string {
         let compileCommandsJsonDefault = "${workspaceFolder}/compile_commands.json";
-        let compileCommandsJson = this.config.get("compile_commands", compileCommandsJsonDefault);
-        let isDefault = compileCommandsJson === compileCommandsJsonDefault;
-        compileCommandsJson = this.replaceWorkspaceVars(compileCommandsJson);
+        let compileCommandsJsonPath = this.config.get("compile_commands", compileCommandsJsonDefault);
+        let isDefault = compileCommandsJsonPath === compileCommandsJsonDefault;
+        compileCommandsJsonPath = this.replaceWorkspaceVars(compileCommandsJsonPath);
         try {
-            fs.statSync(compileCommandsJson);
+            fs.statSync(compileCommandsJsonPath);
         }
         catch (err) {
             if (isDefault) {
                 try {
                     let test = this.replaceWorkspaceVars("${workspaceFolder}/build/compile_commands.json");
                     fs.statSync(test);
-                    compileCommandsJson = test;
+                    compileCommandsJsonPath = test;
                 }
                 catch (err) {
                     // Ignore, caught later.
                 }
             }
         }
-        log(DEBUG, "Using compileCommandsJson = '" + compileCommandsJson + "'.");
-        return compileCommandsJson;
+        log(DEBUG, "Using compileCommandsJson = '" + compileCommandsJsonPath + "'.");
+        this.compileCommandsJsonPath = compileCommandsJsonPath;
+        return compileCommandsJsonPath;
     }
 
     updateConfig() {
@@ -323,10 +325,11 @@ class ConfigData {
     }
 
     updateCompileCommands() {
+        let compileCommandsJsonLast = this.compileCommandsJsonPath;
         let compileCommandsJson = this.compileCommandsJson();
         try {
-            let stats = fs.statSync(compileCommandsJson);
-            if (stats.mtimeMs !== this.compileCommandsData.mtimeMs) {
+            let stats = fs.statSync(this.compileCommandsJsonPath);
+            if (stats.mtimeMs !== this.compileCommandsData.mtimeMs || compileCommandsJsonLast !== this.compileCommandsJsonPath) {
                 this.compileCommandsData = this.parseCompileCommands();
             }
         }
