@@ -2,6 +2,7 @@
 
 # [0.0.16]
 
+If the default for `iwyu.compile_commands` is unchanged, but the file is not found, then the extension will also try `${workspaceFolder}/build/compile_commands.json`.
 * Added rudimentary support for `${fileWorkspaceFolder}` in `iwyu.compile_commands` settings.
 
 # [0.0.15]
