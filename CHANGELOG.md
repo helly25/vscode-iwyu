@@ -1,8 +1,12 @@
 # Change Log
 
+# [0.0.17]
+
+* Updated dependencies due to detected vulnerabilities.
+
 # [0.0.16]
 
-* If `iwyu.compile_commands` is set to the default `auto`, then the extension will try:
+* Updated `iwyu.compile_commands` so that if it is set to the default `auto`, then the extension will try:
   - `${workspaceFolder}/compile_commands.json`,
   - `${workspaceFolder}/build/compile_commands.json`,
   - `${fileWorkspaceFolder}/compile_commands.json`, and
