@@ -41,8 +41,8 @@
             "properties": {
                 "iwyu.compile_commands": {
                     "type": "string",
-                    "default": "${workspaceFolder}/compile_commands.json",
-                    "markdownDescription": "Path to `compile_commands.json` file (supports `${workspaceFolder}` and `${workspaceRoot}`). If the default is unchanged, but the file is not found, then the extension will also try `${workspaceFolder}/build/compile_commands.json`."
+                    "default": "auto",
+                    "markdownDescription": "Path to `compile_commands.json` file (supports `${workspaceFolder}`, `${fileWorkspaceFolder}` and `${workspaceRoot}`). If this is set to the default `auto`, then the extension will try `${workspaceFolder}/compile_commands.json`, `${workspaceFolder}/build/compile_commands.json`, `${fileWorkspaceFolder}/compile_commands.json` and `${fileWorkspaceFolder}/build/compile_commands.json`."
                 },
                 "iwyu.filter_iwyu_output": {
                     "type": "string",

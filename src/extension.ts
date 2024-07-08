@@ -296,28 +296,30 @@ class ConfigData {
     }
 
     compileCommandsJson(): string {
-        let compileCommandsJsonDefault = "${workspaceFolder}/compile_commands.json";
+        let compileCommandsJsonDefault = "auto";
         let compileCommandsJsonPath = this.config.get("compile_commands", compileCommandsJsonDefault);
-        let isDefault = compileCommandsJsonPath === compileCommandsJsonDefault;
-        compileCommandsJsonPath = this.replaceWorkspaceVars(compileCommandsJsonPath);
-        try {
-            fs.statSync(compileCommandsJsonPath);
-        }
-        catch (err) {
-            if (isDefault) {
-                try {
-                    let test = this.replaceWorkspaceVars("${workspaceFolder}/build/compile_commands.json");
-                    fs.statSync(test);
-                    compileCommandsJsonPath = test;
-                }
-                catch (err) {
-                    // Ignore, caught later.
-                }
+        const tests: readonly string[] = compileCommandsJsonPath === compileCommandsJsonDefault ?
+            [
+                "${workspaceFolder}/compile_commands.json",
+                "${workspaceFolder}/build/compile_commands.json",
+                "${fileWorkspaceFolder}/compile_commands.json",
+                "${fileWorkspaceFolder}/build/compile_commands.json",
+            ]
+            : [compileCommandsJsonPath];
+        for (let test of tests) {
+            try {
+                test = this.replaceWorkspaceVars(test);
+                fs.statSync(test);
+                compileCommandsJsonPath = test;
+                break;
+            }
+            catch (err) {
+                // Ignore, caught later.
             }
         }
         log(DEBUG, "Using compileCommandsJson = '" + compileCommandsJsonPath + "'.");
         this.compileCommandsJsonPath = compileCommandsJsonPath;
-        return compileCommandsJsonPath;
+        return this.compileCommandsJsonPath;
     }
 
     updateConfig() {
