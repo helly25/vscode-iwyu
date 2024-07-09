@@ -157,22 +157,22 @@ class CompileCommandsData {
         this.compileCommandsJsonPath = compileCommandsJson[0];
         this.mtimeMs = compileCommandsJson[1];
         this.compileCommands = {};
-        log(DEBUG, "Parsing: `" + this.compileCommandsJsonPath + "`");
-        try {
-            let json = <IJsonCompileCommands>JSON.parse(fs.readFileSync(this.compileCommandsJsonPath, "utf8"));
-            for (let entry of json) {
-                let fname: string = entry.file;
-                let directory: string = entry.directory || workspacefolder;
-                if (!path.isAbsolute(fname)) {
-                    fname = path.resolve(workspacefolder, directory, fname);
+        if (this.compileCommandsJsonPath !== "") {
+            log(DEBUG, "Parsing: `" + this.compileCommandsJsonPath + "`");
+            try {
+                let json = <IJsonCompileCommands>JSON.parse(fs.readFileSync(this.compileCommandsJsonPath, "utf8"));
+                for (let entry of json) {
+                    let fname: string = entry.file;
+                    let directory: string = entry.directory || workspacefolder;
+                    if (!path.isAbsolute(fname)) {
+                        fname = path.resolve(workspacefolder, directory, fname);
+                    }
+                    this.compileCommands[fname] = new CompileCommand(entry, directory);
                 }
-                this.compileCommands[fname] = new CompileCommand(entry, directory);
             }
-        }
-        catch (err) {
-            let error = "Bad `iwyu.compile_commands` setting";
-            log(ERROR, error + "'" + this.compileCommandsJsonPath + "': " + err);
-            vscode.window.showErrorMessage(error + ". Please check your settings and ensure the `compile_commands.json` file is in the specified location.<br/><br/>" + err);
+            catch (err) {
+                log(ERROR, "Error parsing '" + this.compileCommandsJsonPath + "': " + err);
+            }
         }
         let ignoreRe: string = config.get("fix.ignore_re", "").trim();
         this.ignoreRe = ignoreRe === "" ? null : new RegExp(ignoreRe);
@@ -251,6 +251,8 @@ class ConfigData {
     workspacefolder: string;
     config: vscode.WorkspaceConfiguration;
     compileCommandsData: CompileCommandsData;
+    compileCommandsErrorShown: Boolean = false;
+    compileCommandsErrorPath: string | null = null;
 
     constructor(workspacefolder: string) {
         this.workspacefolder = workspacefolder;
@@ -261,7 +263,9 @@ class ConfigData {
             vscode.workspace.getConfiguration("iwyu").update("diagnostics", undefined, vscode.ConfigurationTarget.Workspace);
             vscode.workspace.getConfiguration("iwyu").update("diagnostics", undefined, vscode.ConfigurationTarget.WorkspaceFolder);
         }
-        this.compileCommandsData = this.parseCompileCommands(this.compileCommandsJson());
+        const compileCommandsJson = this.compileCommandsJson();
+
+        this.compileCommandsData = this.parseCompileCommands(compileCommandsJson);
     }
 
     async waitUntilIwyuFinished(iwyuData: IwyuData) {
@@ -296,9 +300,25 @@ class ConfigData {
         return input;
     }
 
+    private badCompileCommandsSetting(compileCommandsJsonPath: string, err: any) {
+        let error = "Bad `iwyu.compile_commands` setting";
+        if (this.compileCommandsErrorPath === null || this.compileCommandsErrorPath !== compileCommandsJsonPath) {
+            log(ERROR, error + " '" + compileCommandsJsonPath + "': " + err);
+            this.compileCommandsErrorPath = compileCommandsJsonPath;
+        }
+        if (!this.compileCommandsErrorShown) {
+            vscode.window.showErrorMessage(error + ". Please check your settings and ensure the `compile_commands.json` file is in the specified location.\n\n" + err);
+        }
+        this.compileCommandsErrorShown = true;
+    }
+
     compileCommandsJson(): [string, number] {
         const compileCommandsJsonDefault = "auto";
         let compileCommandsJsonPath = this.config.get("compile_commands", compileCommandsJsonDefault);
+        if (compileCommandsJsonPath === "") {
+            this.badCompileCommandsSetting(compileCommandsJsonPath, "Disabling IWYU functionality.");
+            return ["", -1];
+        }
         const tests: readonly string[] = compileCommandsJsonPath === compileCommandsJsonDefault ?
             [
                 "${workspaceFolder}/compile_commands.json",
@@ -321,12 +341,10 @@ class ConfigData {
             }
         }
         if (mtimeMs === -1) {
-            log(ERROR, "Bad compileCommandsJson setting: '" + compileCommandsJsonPath + "'.");
+            this.badCompileCommandsSetting(compileCommandsJsonPath, "File not found. Disabling IWYU functionality.");
             return ["", -1];
         }
-        if (this.compileCommandsData === undefined
-            || this.compileCommandsData === null
-            || this.compileCommandsData.compileCommandsJsonPath !== compileCommandsJsonPath) {
+        if (this.compileCommandsData?.compileCommandsJsonPath !== compileCommandsJsonPath) {
             log(DEBUG, "Using compileCommandsJson: '" + compileCommandsJsonPath + "'.");
         }
         return [compileCommandsJsonPath, mtimeMs];
