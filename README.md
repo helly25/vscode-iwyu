@@ -53,8 +53,12 @@ easily achievable with all projects. The standard clang configurations also have
 
 This extension has the following general settings:
 
-- `iwyu.compile_commands` Path to `compile_commands.json` file (supports `${workspaceFolder}` and
-  `${workspaceRoot}`).
+- `iwyu.compile_commands` Path to `compile_commands.json` file (supports `${workspaceFolder}`,
+  `${workspaceRoot}` and `${fileWorkspaceFolder}`). If set to the default `auto`, then the extension will try:
+  - `${workspaceFolder}/compile_commands.json`,
+  - `${workspaceFolder}/build/compile_commands.json`,
+  - `${fileWorkspaceFolder}/compile_commands.json`, and
+  - `${fileWorkspaceFolder}/build/compile_commands.json`.
 - `iwyu.filter_iwu_output`: Regexp expression filter for iwyu output. This will be used as {here} in
   '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'. This
   does not result in removing such headers, it merely prevents adding them, so it won't produce diagnostics for such includes.

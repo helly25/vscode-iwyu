@@ -168,7 +168,7 @@ class CompileCommandsData {
                 this.compileCommands[fname] = new CompileCommand(entry, directory);
             }
         }
-        catch(err) {
+        catch (err) {
             let error = "Bad `iwyu.compile_commands` setting";
             log(ERROR, error + "'" + compileCommandsJson + "': " + err);
             vscode.window.showErrorMessage(error + ". Please check your settings and ensure the `compile_commands.json` file is in the specified location.<br/><br/>" + err);
@@ -249,6 +249,7 @@ class ConfigData {
     workspacefolder: string;
     config: vscode.WorkspaceConfiguration;
     compileCommandsData: CompileCommandsData;
+    compileCommandsJsonPath: string = "";
 
     constructor(workspacefolder: string) {
         this.workspacefolder = workspacefolder;
@@ -285,11 +286,40 @@ class ConfigData {
         return this.compileCommandsData.compileCommands[fname] || null;
     }
 
+    replaceWorkspaceVars(input: string): string {
+        input = input.replace("${workspaceRoot}", this.workspacefolder);
+        input = input.replace("${workspaceFolder}", this.workspacefolder);
+        let uri = vscode.window.activeTextEditor?.document?.uri;
+        let path = uri ? vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath : "";
+        input = input.replace("${fileWorkspaceFolder}", typeof path === "string" ? path : "");
+        return input;
+    }
+
     compileCommandsJson(): string {
-        return this.config
-            .get("compile_commands", "${workspaceFolder}/XXX/compile_commands.json")
-            .replace("${workspaceRoot}", this.workspacefolder)
-            .replace("${workspaceFolder}", this.workspacefolder);
+        let compileCommandsJsonDefault = "auto";
+        let compileCommandsJsonPath = this.config.get("compile_commands", compileCommandsJsonDefault);
+        const tests: readonly string[] = compileCommandsJsonPath === compileCommandsJsonDefault ?
+            [
+                "${workspaceFolder}/compile_commands.json",
+                "${workspaceFolder}/build/compile_commands.json",
+                "${fileWorkspaceFolder}/compile_commands.json",
+                "${fileWorkspaceFolder}/build/compile_commands.json",
+            ]
+            : [compileCommandsJsonPath];
+        for (let test of tests) {
+            try {
+                test = this.replaceWorkspaceVars(test);
+                fs.statSync(test);
+                compileCommandsJsonPath = test;
+                break;
+            }
+            catch (err) {
+                // Ignore, caught later.
+            }
+        }
+        log(DEBUG, "Using compileCommandsJson = '" + compileCommandsJsonPath + "'.");
+        this.compileCommandsJsonPath = compileCommandsJsonPath;
+        return this.compileCommandsJsonPath;
     }
 
     updateConfig() {
@@ -297,14 +327,15 @@ class ConfigData {
     }
 
     updateCompileCommands() {
+        let compileCommandsJsonLast = this.compileCommandsJsonPath;
         let compileCommandsJson = this.compileCommandsJson();
         try {
-            let stats = fs.statSync(compileCommandsJson);
-            if (stats.mtimeMs !== this.compileCommandsData.mtimeMs) {
+            let stats = fs.statSync(this.compileCommandsJsonPath);
+            if (stats.mtimeMs !== this.compileCommandsData.mtimeMs || compileCommandsJsonLast !== this.compileCommandsJsonPath) {
                 this.compileCommandsData = this.parseCompileCommands();
             }
         }
-        catch(err) {
+        catch (err) {
             log(ERROR, "Bad `iwyu.compile_commands` setting: '" + compileCommandsJson + "': " + err);
         }
     }
