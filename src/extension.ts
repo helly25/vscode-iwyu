@@ -153,12 +153,13 @@ type CompileCommandsMap = {
 };
 
 class CompileCommandsData {
-    constructor(config: vscode.WorkspaceConfiguration, compileCommandsJson: string, workspacefolder: string) {
-        log(DEBUG, "Parsing: `" + compileCommandsJson + "`");
+    constructor(config: vscode.WorkspaceConfiguration, compileCommandsJson: [string, number], workspacefolder: string) {
+        this.compileCommandsJsonPath = compileCommandsJson[0];
+        this.mtimeMs = compileCommandsJson[1];
         this.compileCommands = {};
+        log(DEBUG, "Parsing: `" + this.compileCommandsJsonPath + "`");
         try {
-            this.mtimeMs = fs.statSync(compileCommandsJson).mtimeMs;
-            let json = <IJsonCompileCommands>JSON.parse(fs.readFileSync(compileCommandsJson, "utf8"));
+            let json = <IJsonCompileCommands>JSON.parse(fs.readFileSync(this.compileCommandsJsonPath, "utf8"));
             for (let entry of json) {
                 let fname: string = entry.file;
                 let directory: string = entry.directory || workspacefolder;
@@ -170,7 +171,7 @@ class CompileCommandsData {
         }
         catch (err) {
             let error = "Bad `iwyu.compile_commands` setting";
-            log(ERROR, error + "'" + compileCommandsJson + "': " + err);
+            log(ERROR, error + "'" + this.compileCommandsJsonPath + "': " + err);
             vscode.window.showErrorMessage(error + ". Please check your settings and ensure the `compile_commands.json` file is in the specified location.<br/><br/>" + err);
         }
         let ignoreRe: string = config.get("fix.ignore_re", "").trim();
@@ -181,6 +182,7 @@ class CompileCommandsData {
         this.headerRe = headerRe === "" ? null : new RegExp(headerRe);
     }
 
+    compileCommandsJsonPath: string = "";
     compileCommands: CompileCommandsMap = {};
     mtimeMs: number = 0;
     ignoreRe: RegExp | null;
@@ -249,7 +251,6 @@ class ConfigData {
     workspacefolder: string;
     config: vscode.WorkspaceConfiguration;
     compileCommandsData: CompileCommandsData;
-    compileCommandsJsonPath: string = "";
 
     constructor(workspacefolder: string) {
         this.workspacefolder = workspacefolder;
@@ -260,7 +261,7 @@ class ConfigData {
             vscode.workspace.getConfiguration("iwyu").update("diagnostics", undefined, vscode.ConfigurationTarget.Workspace);
             vscode.workspace.getConfiguration("iwyu").update("diagnostics", undefined, vscode.ConfigurationTarget.WorkspaceFolder);
         }
-        this.compileCommandsData = this.parseCompileCommands();
+        this.compileCommandsData = this.parseCompileCommands(this.compileCommandsJson());
     }
 
     async waitUntilIwyuFinished(iwyuData: IwyuData) {
@@ -295,8 +296,8 @@ class ConfigData {
         return input;
     }
 
-    compileCommandsJson(): string {
-        let compileCommandsJsonDefault = "auto";
+    compileCommandsJson(): [string, number] {
+        const compileCommandsJsonDefault = "auto";
         let compileCommandsJsonPath = this.config.get("compile_commands", compileCommandsJsonDefault);
         const tests: readonly string[] = compileCommandsJsonPath === compileCommandsJsonDefault ?
             [
@@ -306,10 +307,12 @@ class ConfigData {
                 "${fileWorkspaceFolder}/build/compile_commands.json",
             ]
             : [compileCommandsJsonPath];
+        let mtimeMs: number = -1;
         for (let test of tests) {
             try {
                 test = this.replaceWorkspaceVars(test);
-                fs.statSync(test);
+                let stats = fs.statSync(test);
+                mtimeMs = stats.mtimeMs;
                 compileCommandsJsonPath = test;
                 break;
             }
@@ -317,9 +320,16 @@ class ConfigData {
                 // Ignore, caught later.
             }
         }
-        log(DEBUG, "Using compileCommandsJson = '" + compileCommandsJsonPath + "'.");
-        this.compileCommandsJsonPath = compileCommandsJsonPath;
-        return this.compileCommandsJsonPath;
+        if (mtimeMs === -1) {
+            log(ERROR, "Bad compileCommandsJson setting: '" + compileCommandsJsonPath + "'.");
+            return ["", -1];
+        }
+        if (this.compileCommandsData === undefined
+            || this.compileCommandsData === null
+            || this.compileCommandsData.compileCommandsJsonPath !== compileCommandsJsonPath) {
+            log(DEBUG, "Using compileCommandsJson: '" + compileCommandsJsonPath + "'.");
+        }
+        return [compileCommandsJsonPath, mtimeMs];
     }
 
     updateConfig() {
@@ -327,16 +337,13 @@ class ConfigData {
     }
 
     updateCompileCommands() {
-        let compileCommandsJsonLast = this.compileCommandsJsonPath;
-        let compileCommandsJson = this.compileCommandsJson();
-        try {
-            let stats = fs.statSync(this.compileCommandsJsonPath);
-            if (stats.mtimeMs !== this.compileCommandsData.mtimeMs || compileCommandsJsonLast !== this.compileCommandsJsonPath) {
-                this.compileCommandsData = this.parseCompileCommands();
-            }
+        const [compileCommandsJsonPath, mtimeMs] = this.compileCommandsJson();
+        if (compileCommandsJsonPath === "" || mtimeMs === -1) {
+            return;  // Not found: Nothing to do.
         }
-        catch (err) {
-            log(ERROR, "Bad `iwyu.compile_commands` setting: '" + compileCommandsJson + "': " + err);
+        if (this.compileCommandsData.compileCommandsJsonPath !== compileCommandsJsonPath
+            || this.compileCommandsData.mtimeMs !== mtimeMs) {
+            this.compileCommandsData = this.parseCompileCommands([compileCommandsJsonPath, mtimeMs]);
         }
     }
 
@@ -357,8 +364,8 @@ class ConfigData {
             .replace("${FILE}", fileName.toUpperCase());
     }
 
-    private parseCompileCommands(): CompileCommandsData {
-        return new CompileCommandsData(this.config, this.compileCommandsJson(), this.workspacefolder);
+    private parseCompileCommands(compileCommandsJson: [string, number]): CompileCommandsData {
+        return new CompileCommandsData(this.config, compileCommandsJson, this.workspacefolder);
     }
 };
 
