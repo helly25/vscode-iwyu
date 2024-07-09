@@ -1,5 +1,9 @@
 # Change Log
 
+# [0.0.18]
+
+* Fixed issue with `iwyu.diagnostics.only_re` setting default (needs to be `""`).
+
 # [0.0.17]
 
 * Updated dependencies due to detected vulnerabilities.

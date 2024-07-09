@@ -740,6 +740,13 @@ class Extension {
         }
         this.configData.updateConfig();
         let diagnosticsOnlyRe: string = this.configData.config.get("diagnostics.only_re", "");
+        if (typeof diagnosticsOnlyRe  !== "string" || String(diagnosticsOnlyRe) === "true") {
+            // There was a bug fixed in https://github.com/helly25/vscode-iwyu/pull/4.
+            // This allows diagnostics to work in setups where defaults were copied into the user/workspace settings.
+            log(ERROR, "Bad value for setting `iwyu.diagnostics.only_re`, please update to `\"\"`.");
+            this.configData.config.update("diagnostics.only_re", undefined);
+            diagnosticsOnlyRe = "";
+        }
         if (diagnosticsOnlyRe && !doc.fileName.match(diagnosticsOnlyRe)) {
             return;
         }
