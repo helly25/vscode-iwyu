@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import * as child_process from 'child_process';
+import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -93,7 +93,7 @@ class IwyuData {
                         return;
                     }
                 }
-                let include = [...line.matchAll(INCLUDE_RE)][0]?.[1] ?? "";
+                const include = [...line.matchAll(INCLUDE_RE)][0]?.[1] ?? "";
                 if (include === "") {
                     return;
                 }
@@ -134,7 +134,7 @@ class CompileCommand {
             this.command = this.arguments[0] || "";
             this.arguments = this.arguments.slice(1);
         } else {
-            let args = parseCommandLine(entry.command || "");
+            const args = parseCommandLine(entry.command || "");
             this.command = args[0] || "";
             this.arguments = args.slice(1);
         }
@@ -160,10 +160,10 @@ class CompileCommandsData {
         if (this.compileCommandsJsonPath !== "") {
             log(DEBUG, "Parsing: `" + this.compileCommandsJsonPath + "`");
             try {
-                let json = <IJsonCompileCommands>JSON.parse(fs.readFileSync(this.compileCommandsJsonPath, "utf8"));
-                for (let entry of json) {
+                const json = <IJsonCompileCommands>JSON.parse(fs.readFileSync(this.compileCommandsJsonPath, "utf8"));
+                for (const entry of json) {
                     let fname: string = entry.file;
-                    let directory: string = entry.directory || workspacefolder;
+                    const directory: string = entry.directory || workspacefolder;
                     if (!path.isAbsolute(fname)) {
                         fname = path.resolve(workspacefolder, directory, fname);
                     }
@@ -174,11 +174,11 @@ class CompileCommandsData {
                 log(ERROR, "Error parsing '" + this.compileCommandsJsonPath + "': " + err);
             }
         }
-        let ignoreRe: string = config.get("fix.ignore_re", "").trim();
+        const ignoreRe: string = config.get("fix.ignore_re", "").trim();
         this.ignoreRe = ignoreRe === "" ? null : new RegExp(ignoreRe);
-        let onlyRe: string = config.get("fix.only_re", "").trim();
+        const onlyRe: string = config.get("fix.only_re", "").trim();
         this.onlyRe = onlyRe === "" ? null : new RegExp(onlyRe);
-        let headerRe: string = config.get("diagnostics.include_guard_files", "[.](h|hh|hpp|hxx)$").trim();
+        const headerRe: string = config.get("diagnostics.include_guard_files", "[.](h|hh|hpp|hxx)$").trim();
         this.headerRe = headerRe === "" ? null : new RegExp(headerRe);
     }
 
@@ -193,7 +193,7 @@ class CompileCommandsData {
 // Parses a command line into an array.
 // Splits on spaces as separators while respecting \, ", '.
 export function parseCommandLine(cmd: string): string[] {
-    let args: string[] = [];
+    const args: string[] = [];
     let single = false;
     let double = false;
     let start = 0;
@@ -294,14 +294,14 @@ class ConfigData {
     replaceWorkspaceVars(input: string): string {
         input = input.replace("${workspaceRoot}", this.workspacefolder);
         input = input.replace("${workspaceFolder}", this.workspacefolder);
-        let uri = vscode.window.activeTextEditor?.document?.uri;
-        let path = uri ? vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath : "";
+        const uri = vscode.window.activeTextEditor?.document?.uri;
+        const path = uri ? vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath : "";
         input = input.replace("${fileWorkspaceFolder}", typeof path === "string" ? path : "");
         return input;
     }
 
     private badCompileCommandsSetting(compileCommandsJsonPath: string, err: any) {
-        let error = "Bad `iwyu.compile_commands` setting";
+        const error = "Bad `iwyu.compile_commands` setting";
         if (this.compileCommandsErrorPath === null || this.compileCommandsErrorPath !== compileCommandsJsonPath) {
             log(ERROR, error + " '" + compileCommandsJsonPath + "': " + err);
             this.compileCommandsErrorPath = compileCommandsJsonPath;
@@ -331,7 +331,7 @@ class ConfigData {
         for (let test of tests) {
             try {
                 test = this.replaceWorkspaceVars(test);
-                let stats = fs.statSync(test);
+                const stats = fs.statSync(test);
                 mtimeMs = stats.mtimeMs;
                 compileCommandsJsonPath = test;
                 break;
@@ -366,7 +366,7 @@ class ConfigData {
     }
 
     getIncludeGuard(fileName: string, directory: string): string {
-        let guard = this.config.get("diagnostics.include_guard", "");
+        const guard: string = this.config.get("diagnostics.include_guard", "");
         if (guard === "") {
             return "";
         }
@@ -406,7 +406,7 @@ class Extension {
     }
 
     private iwyuFix(compileCommand: CompileCommand, iwyuOutput: string) {
-        let args = [this.configData.config.get("fix_includes.py", "fix_includes.py")];
+        const args = [this.configData.config.get("fix_includes.py", "fix_includes.py")];
 
         args.push("--basedir=" + compileCommand.directory);
         args.push(this.configData.config.get("fix.comments", false)
@@ -415,11 +415,11 @@ class Extension {
         if (this.configData.config.get("fix.dry_run", false)) {
             args.push("--dry_run");
         }
-        let ignore = this.configData.config.get("fix.ignore_re", "").trim();
+        const ignore = this.configData.config.get("fix.ignore_re", "").trim();
         if (ignore !== "") {
             args.push("--ignore_re=" + ignore);
         }
-        let only = this.configData.config.get("fix.only_re", "").trim();
+        const only = this.configData.config.get("fix.only_re", "").trim();
         if (only !== "") {
             args.push("--only_re=" + only);
         }
@@ -436,7 +436,7 @@ class Extension {
         let cmd = args.join(" ");
         log(TRACE, "fix:\n(cat <<EOF...IWYU-output...EOF) | " + cmd);
         cmd = "(cat <<EOF\n" + iwyuOutput + "\nEOF\n) | " + cmd;
-        child_process.exec(cmd, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, stderr: string) => {
+        exec(cmd, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, stderr: string) => {
             if (err) {
                 log(ERROR, err.message);
             }
@@ -457,9 +457,9 @@ class Extension {
     }
 
     private iwyuRunCallback(compileCommand: CompileCommand, iwyuOutput: string, callback: (this: Extension, compileCommand: CompileCommand, iwyuOutput: string) => void) {
-        let iwyuFilterOutput = this.configData.config.get("filter_iwyu_output", "").trim();
+        const iwyuFilterOutput = this.configData.config.get("filter_iwyu_output", "").trim();
         if (iwyuFilterOutput !== "") {
-            let filtered: string[] = [];
+            const filtered: string[] = [];
             const filterRe = new RegExp("#include.*(" + iwyuFilterOutput + ")");
             iwyuOutput.split("\n").forEach((line: string) => {
                 if (!line.match(filterRe)) {
@@ -469,17 +469,17 @@ class Extension {
             iwyuOutput = filtered.join("\n");
             log(TRACE, "IWYU output filtered:\n" + iwyuOutput);
         }
-        let enableDiagnostics = this.configData.config.get("iwyu.diagnostics.unused_includes", true);
+        const enableDiagnostics = this.configData.config.get("iwyu.diagnostics.unused_includes", true);
         compileCommand.iwyuData.update(iwyuOutput, compileCommand.file, enableDiagnostics);
         callback.call(this, compileCommand, iwyuOutput);
     }
 
     private iwyuRun(compileCommand: CompileCommand, callback: (this: Extension, compileCommand: CompileCommand, iwyuOutput: string) => void) {
-        let file = compileCommand.file;
+        const file = compileCommand.file;
         log(DEBUG, "Checking `" + file + "`");
 
-        let len = this.configData.config.get("iwyu.max_line_length", 80);
-        let args = [`-Xiwyu --max_line_length=${len}`];
+        const len = this.configData.config.get("iwyu.max_line_length", 80);
+        const args = [`-Xiwyu --max_line_length=${len}`];
 
         args.push(this.configData.config
             .get("iwyu.keep", [])
@@ -496,11 +496,11 @@ class Extension {
             args.push("-Xiwyu --no_default_mappings");
         }
 
-        let mapping = this.configData.config.get("iwyu.mapping_file", "").trim();
+        const mapping = this.configData.config.get("iwyu.mapping_file", "").trim();
         if (mapping !== "") {
             args.push("-Xiwyu --mapping_file=" + mapping);
         }
-        let params = this.configData.config.get("iwyu.additional_params", "");
+        const params = this.configData.config.get("iwyu.additional_params", "");
         if (params !== "") {
             args.push(params);
         }
@@ -511,7 +511,7 @@ class Extension {
         log(TRACE, "IWYU Command: " + iwyu);
         compileCommand.iwyuData.running++;
         try {
-            child_process.exec(iwyu, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, stderr: string) => {
+            exec(iwyu, { cwd: compileCommand.directory }, (err: Error | null, stdout: string, stderr: string) => {
                 if (stderr) {
                     log(ERROR, "stderr:\n" + stderr);
                 }
@@ -537,7 +537,7 @@ class Extension {
 
         this.configData.updateConfig();
         this.configData.updateCompileCommands();
-        let compileCommand = this.configData.getCompileCommand(editor.document.fileName);
+        const compileCommand = this.configData.getCompileCommand(editor.document.fileName);
         if (compileCommand) {
             editor.document.save();
             this.iwyuRun(compileCommand, this.iwyuFix);
@@ -548,14 +548,14 @@ class Extension {
         this.configData.updateConfig();
         this.configData.updateCompileCommands();
         vscode.workspace.saveAll();
-        let root = path.normalize(this.configData.workspacefolder);
+        const root = path.normalize(this.configData.workspacefolder);
         log(INFO, "Fixing all project files.");
-        for (let fname in this.configData.compileCommandsData.compileCommands) {
+        for (const fname in this.configData.compileCommandsData.compileCommands) {
             if (!fname.startsWith(this.configData.workspacefolder)) {
                 continue;
             }
             // Use `get...` to respect `iwyu.fix.ignore_re` and `iwyu.fix.only_re`.
-            let compileCommand = this.configData.getCompileCommand(fname);
+            const compileCommand = this.configData.getCompileCommand(fname);
             if (!compileCommand) {
                 continue;
             }
@@ -566,8 +566,8 @@ class Extension {
                 relFile = relFile.substring(1);
             }
             // Compute the absolute first directory part, or just the filename.
-            let paths = relFile.split(path.sep);
-            let first = path.join(root, paths[0] || "");
+            const paths = relFile.split(path.sep);
+            const first = path.join(root, paths[0] || "");
             // Exclude it if it is a symbolic link (e.g. exclude 'external').
             try {
                 if (fs.lstatSync(first).isSymbolicLink()) {
@@ -620,8 +620,8 @@ class Extension {
     }
 
     private addIncludeGuardRef(doc: vscode.TextDocument, diagnostic: vscode.Diagnostic, includeGuardLine: number): vscode.Diagnostic {
-        let range = new vscode.Range(includeGuardLine, 0, includeGuardLine, doc.lineAt(includeGuardLine).text.length);
-        let related = new vscode.DiagnosticRelatedInformation(new vscode.Location(doc.uri, range), "Location of include guard.");
+        const range = new vscode.Range(includeGuardLine, 0, includeGuardLine, doc.lineAt(includeGuardLine).text.length);
+        const related = new vscode.DiagnosticRelatedInformation(new vscode.Location(doc.uri, range), "Location of include guard.");
         diagnostic.relatedInformation = [related];
         return diagnostic;
     }
@@ -629,13 +629,13 @@ class Extension {
     private iwyuDiagnosticsScan(compileCommand: CompileCommand, doc: vscode.TextDocument, iwyuDiagnostics: vscode.DiagnosticCollection): void {
         const diagnostics: vscode.Diagnostic[] = [];
         const includesToRemove = compileCommand.iwyuData.includesToRemove;
-        let scanMin: number = this.configData.config.get("diagnostics.scan_min", 100);
+        const scanMin: number = this.configData.config.get("diagnostics.scan_min", 100);
         let scanMax: number = scanMin;
-        let scanMore: number = this.configData.config.get("diagnostics.scan_more", 10);
-        let expectedIncludeGuard: string = this.configData.getIncludeGuard(doc.fileName, compileCommand.directory);
-        let headerRe = this.configData.compileCommandsData.headerRe;
-        let headerMatch = headerRe !== null ? headerRe.test(doc.fileName) : false;
-        let checkIncludeGuard: boolean = expectedIncludeGuard !== "" && headerMatch;
+        const scanMore: number = this.configData.config.get("diagnostics.scan_more", 10);
+        const expectedIncludeGuard: string = this.configData.getIncludeGuard(doc.fileName, compileCommand.directory);
+        const headerRe = this.configData.compileCommandsData.headerRe;
+        const headerMatch = headerRe !== null ? headerRe.test(doc.fileName) : false;
+        const checkIncludeGuard: boolean = expectedIncludeGuard !== "" && headerMatch;
         let includeGuardLine: number = -1;
         let pragmaOnceLine: number = -1;
         let includeStart: number = -1;
@@ -650,7 +650,7 @@ class Extension {
                     scanMax++;
                     continue;
                 }
-                let p = lineOfText.firstNonWhitespaceCharacterIndex;
+                const p = lineOfText.firstNonWhitespaceCharacterIndex;
                 if (p >= 0) {
                     if (lineOfText.text.substring(p, p + 2) === "//") {
                         scanMax++;
@@ -664,7 +664,7 @@ class Extension {
             }
             if (checkIncludeGuard) {
                 if (includeGuardLine === -1) {
-                    let guard = [...lineOfText.text.matchAll(INC_GUARD_IFNDEF)][0]?.[2] ?? "";
+                    const guard = [...lineOfText.text.matchAll(INC_GUARD_IFNDEF)][0]?.[2] ?? "";
                     if (guard !== "") {
                         includeGuardLine = line;
                         if (guard !== expectedIncludeGuard) {
@@ -672,14 +672,14 @@ class Extension {
                                 line, 0, lineOfText.text.length, expectedIncludeGuard));
                         }
                     }
-                    let once = [...lineOfText.text.matchAll(PRAGMA_ONCE)];
+                    const once = [...lineOfText.text.matchAll(PRAGMA_ONCE)];
                     if (once.length > 0) {
                         includeGuardLine = line;
                         pragmaOnceLine = line;
                     }
                 }
                 if (pragmaOnceLine === -1 && line === includeGuardLine + 1) {
-                    let guard = [...lineOfText.text.matchAll(INC_GUARD_DEFINE)][0]?.[2] ?? "";
+                    const guard = [...lineOfText.text.matchAll(INC_GUARD_DEFINE)][0]?.[2] ?? "";
                     if (guard !== expectedIncludeGuard) {
                         // The empty string would indicate "#define" is missing or has no value.
                         diagnostics.push(this.addIncludeGuardRef(
@@ -689,7 +689,7 @@ class Extension {
                     }
                 }
             }
-            let include = [...lineOfText.text.matchAll(INCLUDE_RE)][0]?.[1] ?? "";
+            const include = [...lineOfText.text.matchAll(INCLUDE_RE)][0]?.[1] ?? "";
             if (include === "") {
                 continue;
             }
@@ -700,14 +700,14 @@ class Extension {
                 if (line >= scanMin) {
                     scanMax = Math.max(line + 1 + scanMore, scanMax);
                 }
-                let unusedIndex = includesToRemove.findIndex((v, _i, _o) => {
+                const unusedIndex = includesToRemove.findIndex((v, _i, _o) => {
                     return v.include === include;
                 });
                 if (unusedIndex < 0) {
                     // `findIndex` will return -1 which would be interpreted as 1 from the back.
                     continue;
                 }
-                let unusedInclude = includesToRemove[unusedIndex]?.include ?? "";
+                const unusedInclude = includesToRemove[unusedIndex]?.include ?? "";
                 if (!unusedInclude) {
                     continue;
                 }
@@ -718,7 +718,7 @@ class Extension {
                         start = 0;
                         len = lineOfText.text.length;
                     } else {
-                        let hash = lineOfText.text.indexOf("#");
+                        const hash = lineOfText.text.indexOf("#");
                         len = unusedInclude.length + start - hash;
                         start = hash;
                     }
@@ -731,14 +731,14 @@ class Extension {
                 diagnostics.push(this.createDiagnosticIncludeGuardMissingIfndef(0, 0, firstLineLength, expectedIncludeGuard));
             } else {
                 let includeGuardEndLine: number = -1;
-                let lastLine: number = doc.lineCount - 1;
+                const lastLine: number = doc.lineCount - 1;
                 for (let line = lastLine; line > 0 && line > lastLine - 10; line--) {
                     const lineOfText = doc.lineAt(line);
-                    let match = [...lineOfText.text.matchAll(INC_GUARD_ENDIF)] ?? [];
+                    const match = [...lineOfText.text.matchAll(INC_GUARD_ENDIF)] ?? [];
                     if (match.length === 0) {
                         continue;
                     }
-                    let guard = match[0]?.[2] || "";
+                    const guard = match[0]?.[2] || "";
                     includeGuardEndLine = line;
                     if (guard !== expectedIncludeGuard) {
                         diagnostics.push(
@@ -780,7 +780,7 @@ class Extension {
         if (!compileCommand) {
             return;
         }
-        let iwyuData = compileCommand.iwyuData;
+        const iwyuData = compileCommand.iwyuData;
         this.configData.waitUntilIwyuFinished(iwyuData).then(() => {
             if (!compileCommand) {
                 return;
@@ -875,19 +875,19 @@ class IwyuQuickFix implements vscode.CodeActionProvider {
         action.diagnostics = [diagnostic];
         action.isPreferred = true;
         action.edit = new vscode.WorkspaceEdit();
-        let line = diagnostic.range.start.line;
-        let text = doc.lineAt(line).text;
+        const line = diagnostic.range.start.line;
+        const text = doc.lineAt(line).text;
         let newText = "";
-        let guard = [...text.matchAll(regexp)][0];
-        let cc = this.configData.getCompileCommand(doc.fileName);
-        let expected = this.configData.getIncludeGuard(doc.fileName, cc?.directory || "");
-        let edits: Array<vscode.TextEdit> = [];
+        const guard = [...text.matchAll(regexp)][0];
+        const cc = this.configData.getCompileCommand(doc.fileName);
+        const expected = this.configData.getIncludeGuard(doc.fileName, cc?.directory || "");
+        const edits: Array<vscode.TextEdit> = [];
         let eol = "\n";
         if (doc.eol === vscode.EndOfLine.CRLF) {
             eol = "\r\n";
         }
         if (addDefine) {
-            let lastLine: number = doc.lineCount;
+            const lastLine: number = doc.lineCount;
             edits.push(vscode.TextEdit.insert(new vscode.Position(lastLine, 0), eol + "#endif  // " + expected + eol));
         }
         if (guard) {
@@ -910,7 +910,7 @@ class IwyuQuickFix implements vscode.CodeActionProvider {
 
 export function activate(context: vscode.ExtensionContext) {
     log(INFO, "Extension activated");
-    let workspaceFolder = vscode.workspace?.workspaceFolders?.at(0)?.uri.fsPath ?? "";
+    const workspaceFolder = vscode.workspace?.workspaceFolders?.at(0)?.uri.fsPath ?? "";
     if (workspaceFolder === "") {
         log(ERROR, "No workspace folder set. Not activating IWYU.");
         return;
