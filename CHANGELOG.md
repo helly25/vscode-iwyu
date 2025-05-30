@@ -1,5 +1,9 @@
 # Change Log
 
+# [0.0.19]
+
+* Added activation support for C language.
+
 # [0.0.18]
 
 * Fixed issue with `iwyu.diagnostics.only_re` setting default (needs to be `""`).

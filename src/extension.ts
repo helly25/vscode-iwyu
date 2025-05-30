@@ -41,6 +41,8 @@ export const ERROR = vscode.LogLevel.Error;
 
 const logger: vscode.LogOutputChannel = vscode.window.createOutputChannel("IWYU", { log: true });
 
+const supportedLanguages = ["cpp", "c"];
+
 function log(severity: vscode.LogLevel, message: string, ...args: any[]) {
     switch (severity) {
         case vscode.LogLevel.Off: return;
@@ -395,11 +397,13 @@ class Extension {
 
         this.subscribeToDocumentChanges(context, iwyuDiagnostics);
 
-        context.subscriptions.push(
-            vscode.languages.registerCodeActionsProvider('cpp', new IwyuQuickFix(this.configData), {
-                providedCodeActionKinds: IwyuQuickFix.providedCodeActionKinds
-            })
-        );
+        for (const lang of supportedLanguages) {
+            context.subscriptions.push(
+                vscode.languages.registerCodeActionsProvider(lang, new IwyuQuickFix(this.configData), {
+                    providedCodeActionKinds: IwyuQuickFix.providedCodeActionKinds,
+                })
+            );
+        }
 
         context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND_ONE, () => { this.iwyuCommandOne(); }));
         context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND_ALL, () => { this.iwyuCommandAll(); }));
@@ -760,9 +764,17 @@ class Extension {
     }
 
     private iwyuDiagnosticsRefresh(doc: vscode.TextDocument, iwyuDiagnostics: vscode.DiagnosticCollection) {
-        if (doc.languageId !== "cpp") {
+        // Only process real files (not logs, etc.)
+        if (doc.uri.scheme !== "file") {
             return;
         }
+
+        // Only process supported languages
+        if (!supportedLanguages.includes(doc.languageId)) {
+            log(DEBUG, `Unsupported language: ${doc.languageId}. Skipping.`);
+            return;
+        }
+
         this.configData.updateConfig();
         let diagnosticsOnlyRe: string = this.configData.config.get("diagnostics.only_re", "");
         if (typeof diagnosticsOnlyRe  !== "string" || String(diagnosticsOnlyRe) === "true") {
