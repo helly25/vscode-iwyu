@@ -1,5 +1,9 @@
 # Change Log
 
+# [0.0.19]
+
+* Added `iwyu.fix.fix_header` which fixed includes in the corresponding header for a given implementation file (e.g. foo.h when fixing foo.cpp).
+
 # [0.0.18]
 
 * Fixed issue with `iwyu.diagnostics.only_re` setting default (needs to be `""`).
