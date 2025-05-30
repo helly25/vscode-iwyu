@@ -14,11 +14,11 @@ This extension integrates [include-what-you-use](https://github.com/include-what
 
 ![IWYU](https://helly25.com/wp-content/uploads/2023/05/iwyu-animated.gif)
 
-2) Manually optimize the include files for the current C/C++ file by pressing `cmd-shit-P` + `I` + `W` + `Y` + `U` for command "`Include What You Use (current file)`". The extension will then lookup the current editor's file in the compile_commands.json file. If found it will then run the include-what-you-use tool. If that is successful it will then call the fix_includes.py script to apply the changes.
+2) Manually optimize the include files for the current C/C++ file by pressing `cmd-shift-P` + `I` + `W` + `Y` + `U` for command "`Include What You Use (current file)`". The extension will then lookup the current editor's file in the compile_commands.json file. If found it will then run the include-what-you-use tool. If that is successful it will then call the fix_includes.py script to apply the changes.
 
 ![IWYU](https://helly25.com/wp-content/uploads/2023/05/iwyu.png)
 
-3) Manually optimize all project files using command "`Include What You Use (all targets)`". This is a slow operation as it goes over all files in the `compile-commands.json` one after the other. It only triggers on source files whose first directory (or the file itself if directly in the project workspace root) is not a symbolic link (which for instance excludes `external` or `bazel-out`). The settings `iwyu.fix.ignore_re` and `iwyu.fix.only_re` are respected upfront and prevent unnecessary triggering.
+3) Manually optimize all project files using command "`Include What You Use (all targets)`". This is a slow operation as it goes over all files in the `compile_commands.json` one after the other. It only triggers on source files whose first directory (or the file itself if directly in the project workspace root) is not a symbolic link (which for instance excludes `external` or `bazel-out`). The settings `iwyu.fix.ignore_re` and `iwyu.fix.only_re` are respected upfront and prevent unnecessary triggering.
 
 4) The extension will check headers for presence and correctness of include guards. Include guards will only be searched for in files matching `iwyu.diagnostics.include_guard_files`. In those files the guards are derived from
 the `iwyu.diagnostics.include_guard` setting. The value `${file}` will be replaced with the filename as is and `${FILE}` will be replaced with the filename in all upper case. All other chars are used as is. So the value  `${FILE}_` adds a '_' to the relative filename in all upper case (for instance `path/foo.h` becomes `PATH_FOO_H_`).
@@ -53,8 +53,12 @@ easily achievable with all projects. The standard clang configurations also have
 
 This extension has the following general settings:
 
-- `iwyu.compile_commands.json` Path to `compile_commands.json` file (supports `${workspaceFolder}` and
-  `${workspaceRoot}`).
+- `iwyu.compile_commands` Path to `compile_commands.json` file (supports `${workspaceFolder}`,
+  `${workspaceRoot}` and `${fileWorkspaceFolder}`). If set to the default `auto`, then the extension will try:
+  - `${workspaceFolder}/compile_commands.json`,
+  - `${workspaceFolder}/build/compile_commands.json`,
+  - `${fileWorkspaceFolder}/compile_commands.json`, and
+  - `${fileWorkspaceFolder}/build/compile_commands.json`.
 - `iwyu.filter_iwu_output`: Regexp expression filter for iwyu output. This will be used as {here} in
   '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'. This
   does not result in removing such headers, it merely prevents adding them, so it won't produce diagnostics for such includes.

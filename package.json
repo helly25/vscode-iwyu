@@ -1,203 +1,202 @@
 {
-    "name": "helly25iwyu",
-    "displayName": "IWYU: Include What You Use",
-    "description": "This extension allows to use IWYU (Include What You Use) in VScode.",
-    "keywords": [
-        "iwyu",
-        "Include What You Use",
-        "include-what-you-use"
+  "name": "helly25iwyu",
+  "displayName": "IWYU: Include What You Use",
+  "description": "This extension allows to use IWYU (Include What You Use) in VScode.",
+  "keywords": [
+    "iwyu",
+    "Include What You Use",
+    "include-what-you-use"
+  ],
+  "version": "0.0.18",
+  "publisher": "helly25",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/helly25/vscode-iwyu.git"
+  },
+  "icon": "images/logo.png",
+  "engines": {
+    "vscode": "^1.78.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:cpp"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "iwyu.run.one",
+        "title": "Include What You Use (current file)"
+      },
+      {
+        "command": "iwyu.run.all",
+        "title": "Include What You Use (all targets)"
+      }
     ],
-    "version": "0.0.15",
-    "publisher": "helly25",
-    "license": "Apache-2.0",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/helly25/vscode-iwyu.git"
-    },
-    "icon": "images/logo.png",
-    "engines": {
-        "vscode": "^1.78.0"
-    },
-    "categories": [
-        "Other"
-    ],
-    "activationEvents": [
-        "onLanguage:cpp"
-    ],
-    "main": "./out/extension.js",
-    "contributes": {
-        "commands": [
-            {
-                "command": "iwyu.run.one",
-                "title": "Include What You Use (current file)"
-            },
-            {
-                "command": "iwyu.run.all",
-                "title": "Include What You Use (all targets)"
-            }
-        ],
-        "configuration": {
-            "title": "Include What You Use",
-            "properties": {
-                "iwyu.compile_commands": {
-                    "type": "string",
-                    "default": "${workspaceFolder}/compile_commands.json",
-                    "markdownDescription": "Path to `compile_commands.json` file (supports `${workspaceFolder}` and `${workspaceRoot}`)."
-                },
-                "iwyu.filter_iwyu_output": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Regexp expression filter for iwyu output. This will be used as {here} in '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'. This does not result in removing such headers, it merely prevents adding them, so it won't produce diagnostics for such includes."
-                },
-                "iwyu.fix_includes.py": {
-                    "type": "string",
-                    "default": "fix_includes.py",
-                    "markdownDescription": "Path to the `fix_includes.py` executable."
-                },
-                "iwyu.diagnostics.full_line_squiggles": {
-                    "type": "boolean",
-                    "default": "true",
-                    "description": "Whether to underline the whole line with squiggles or only the actual include part."
-                },
-                "iwyu.diagnostics.include_guard_files": {
-                    "type": "string",
-                    "default": "[.](h|hh|hpp|hxx)$",
-                    "description": "Regular expression for files that should be checked for include guards."
-                },
-                "iwyu.diagnostics.include_guard": {
-                    "type": "string",
-                    "default": "",
-                    "description": "If this is non empty, then include guards are checked. The relative filename is denoted as '${file}' (as-is) or '${FILE}' (uppercase), so in order to require all caps include guards that end in a '_' this must be set to '${FILE}_' (e.g. 'path/foo.h' then becomes 'PATH_FOO_H_')."
-                },
-                "iwyu.diagnostics.iwyu_interval": {
-                    "type": "number",
-                    "default": 5,
-                    "description": "Minimum interval time in seconds between iwyu calls."
-                },
-                "iwyu.diagnostics.only_re": {
-                    "type": "string",
-                    "default": true,
-                    "description": "Only compute diagnostics for files that match this regexp."
-                },
-                "iwyu.diagnostics.scan_min": {
-                    "type": "number",
-                    "default": 200,
-                    "minimum": 10,
-                    "description": "Scan at least this many lines, if no include is found, then stop (min 10). The scanner does not count lines that start with `#` and `//`."
-                },
-                "iwyu.diagnostics.scan_more": {
-                    "type": "number",
-                    "default": 10,
-                    "minimum": 1,
-                    "description": "After finding an include, scan at least this many more lines (min 1)."
-                },
-                "iwyu.diagnostics.unused_includes": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Enables diagnostic squigglies for unused includes."
-                },
-                "iwyu.include-what-you-use": {
-                    "type": "string",
-                    "default": "include-what-you-use",
-                    "description": "Path to the `include-what-you-use` executable."
-                },
-                "iwyu.iwyu.additional_params": {
-                    "type": "string",
-                    "default": "",
-                    "markdownDescription": "Additional parameters you wish to pass to iwyu (must be prefixed with `-Xiwyu` in order to affect iwyu, otherwise will affect the compiler)."
-                },
-                "iwyu.iwyu.keep": {
-                    "type": "array",
-                    "default": [],
-                    "description": "A glob that tells iwyu to always keep these includes."
-                },
-                "iwyu.iwyu.mapping_file": {
-                    "type": "string",
-                    "default": "",
-                    "description": "Mapping file to use if any."
-                },
-                "iwyu.iwyu.max_line_length": {
-                    "type": "integer",
-                    "default": 80,
-                    "description": "Maximum line length for includes.Note that this only affects comments and alignment thereof, the maximum line length can still be exceeded with long file names."
-                },
-                "iwyu.iwyu.no_default_mappings": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Do not add iwyu's default mappings."
-                },
-                "iwyu.iwyu.no_fwd_decls": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Do not use forward declarations."
-                },
-                "iwyu.iwyu.transitive_includes_only": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Do not suggest that a file add foo.h unless foo.h is already visible in the file's transitive includes."
-                },
-                "iwyu.fix.comments": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Put comments after the #include lines."
-                },
-                "iwyu.fix.dry_run": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Do not actually edit any files; just print diffs on the log OUTPUT."
-                },
-                "iwyu.fix.ignore_re": {
-                    "type": "string",
-                    "default": "",
-                    "description": "Skip editing any file whose name matches this regular expression."
-                },
-                "iwyu.fix.only_re": {
-                    "type": "string",
-                    "default": "",
-                    "description": "Skip editing any file whose name does NOT match this regular expression."
-                },
-                "iwyu.fix.reorder": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Re-order lines relative to other similar lines (e.g. headers relative to other headers)."
-                },
-                "iwyu.fix.safe_headers": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Do not remove unused #includes/fwd-declares from header files; just add new ones."
-                },
-                "iwyu.fix.update_comments": {
-                    "type": "boolean",
-                    "default": false,
-                    "markdownDescription": "Replace *why* comments with the ones provided by IWYU."
-                },
-                "iwyu.fix.fix_header": {
-                    "type": "boolean",
-                    "default": false,
-                    "markdownDescription": "Fix includes in the corresponding header for a given implementation file (e.g. foo.h when fixing foo.cpp)."
-                }
-            }
+    "configuration": {
+      "title": "Include What You Use",
+      "properties": {
+        "iwyu.compile_commands": {
+          "type": "string",
+          "default": "auto",
+          "markdownDescription": "Path to `compile_commands.json` file (supports `${workspaceFolder}`, `${fileWorkspaceFolder}` and `${workspaceRoot}`). If this is set to the default `auto`, then the extension will try `${workspaceFolder}/compile_commands.json`, `${workspaceFolder}/build/compile_commands.json`, `${fileWorkspaceFolder}/compile_commands.json` and `${fileWorkspaceFolder}/build/compile_commands.json`."
+        },
+        "iwyu.filter_iwyu_output": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Regexp expression filter for iwyu output. This will be used as {here} in '#include.*({here})'. For instance in order to not add system includes under '__fwd/*.', set this to '<__fwd/'. This does not result in removing such headers, it merely prevents adding them, so it won't produce diagnostics for such includes."
+        },
+        "iwyu.fix_includes.py": {
+          "type": "string",
+          "default": "fix_includes.py",
+          "markdownDescription": "Path to the `fix_includes.py` executable."
+        },
+        "iwyu.diagnostics.full_line_squiggles": {
+          "type": "boolean",
+          "default": "true",
+          "description": "Whether to underline the whole line with squiggles or only the actual include part."
+        },
+        "iwyu.diagnostics.include_guard_files": {
+          "type": "string",
+          "default": "[.](h|hh|hpp|hxx)$",
+          "description": "Regular expression for files that should be checked for include guards."
+        },
+        "iwyu.diagnostics.include_guard": {
+          "type": "string",
+          "default": "",
+          "description": "If this is non empty, then include guards are checked. The relative filename is denoted as '${file}' (as-is) or '${FILE}' (uppercase), so in order to require all caps include guards that end in a '_' this must be set to '${FILE}_' (e.g. 'path/foo.h' then becomes 'PATH_FOO_H_')."
+        },
+        "iwyu.diagnostics.iwyu_interval": {
+          "type": "number",
+          "default": 5,
+          "description": "Minimum interval time in seconds between iwyu calls."
+        },
+        "iwyu.diagnostics.only_re": {
+          "type": "string",
+          "default": "",
+          "description": "Only compute diagnostics for files that match this regexp."
+        },
+        "iwyu.diagnostics.scan_min": {
+          "type": "number",
+          "default": 200,
+          "minimum": 10,
+          "description": "Scan at least this many lines, if no include is found, then stop (min 10). The scanner does not count lines that start with `#` and `//`."
+        },
+        "iwyu.diagnostics.scan_more": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "description": "After finding an include, scan at least this many more lines (min 1)."
+        },
+        "iwyu.diagnostics.unused_includes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enables diagnostic squigglies for unused includes."
+        },
+        "iwyu.include-what-you-use": {
+          "type": "string",
+          "default": "include-what-you-use",
+          "description": "Path to the `include-what-you-use` executable."
+        },
+        "iwyu.iwyu.additional_params": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Additional parameters you wish to pass to iwyu (must be prefixed with `-Xiwyu` in order to affect iwyu, otherwise will affect the compiler)."
+        },
+        "iwyu.iwyu.keep": {
+          "type": "array",
+          "default": [],
+          "description": "A glob that tells iwyu to always keep these includes."
+        },
+        "iwyu.iwyu.mapping_file": {
+          "type": "string",
+          "default": "",
+          "description": "Mapping file to use if any."
+        },
+        "iwyu.iwyu.max_line_length": {
+          "type": "integer",
+          "default": 80,
+          "description": "Maximum line length for includes.Note that this only affects comments and alignment thereof, the maximum line length can still be exceeded with long file names."
+        },
+        "iwyu.iwyu.no_default_mappings": {
+          "type": "boolean",
+          "default": false,
+          "description": "Do not add iwyu's default mappings."
+        },
+        "iwyu.iwyu.no_fwd_decls": {
+          "type": "boolean",
+          "default": false,
+          "description": "Do not use forward declarations."
+        },
+        "iwyu.iwyu.transitive_includes_only": {
+          "type": "boolean",
+          "default": true,
+          "description": "Do not suggest that a file add foo.h unless foo.h is already visible in the file's transitive includes."
+        },
+        "iwyu.fix.comments": {
+          "type": "boolean",
+          "default": false,
+          "description": "Put comments after the #include lines."
+        },
+        "iwyu.fix.dry_run": {
+          "type": "boolean",
+          "default": false,
+          "description": "Do not actually edit any files; just print diffs on the log OUTPUT."
+        },
+        "iwyu.fix.ignore_re": {
+          "type": "string",
+          "default": "",
+          "description": "Skip editing any file whose name matches this regular expression."
+        },
+        "iwyu.fix.only_re": {
+          "type": "string",
+          "default": "",
+          "description": "Skip editing any file whose name does NOT match this regular expression."
+        },
+        "iwyu.fix.reorder": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-order lines relative to other similar lines (e.g. headers relative to other headers)."
+        },
+        "iwyu.fix.safe_headers": {
+          "type": "boolean",
+          "default": false,
+          "description": "Do not remove unused #includes/fwd-declares from header files; just add new ones."
+        },
+        "iwyu.fix.update_comments": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Replace *why* comments with the ones provided by IWYU."
         }
-    },
-    "scripts": {
-        "vscode:prepublish": "npm run compile",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
-        "pretest": "npm run compile && npm run lint",
-        "lint": "eslint src --ext ts",
-        "test": "node ./out/test/runTest.js"
-    },
-    "devDependencies": {
-        "@types/vscode": "^1.78.0",
-        "@types/glob": "^8.1.0",
-        "@types/mocha": "^10.0.1",
-        "@types/node": "16.x",
-        "@typescript-eslint/eslint-plugin": "^5.59.1",
-        "@typescript-eslint/parser": "^5.59.1",
-        "eslint": "^8.39.0",
-        "glob": "^8.1.0",
-        "mocha": "^10.2.0",
-        "typescript": "^5.0.4",
-        "@vscode/test-electron": "^2.3.0"
+      }
     }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "node ./out/test/runTest.js",
+    "eslint": "eslint"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.1",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^22.5.2",
+    "@types/vscode": "^1.92.0",
+    "@typescript-eslint/eslint-plugin": "^8.3.0",
+    "@typescript-eslint/parser": "^8.3.0",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.9.1",
+    "glob": "^11.0.0",
+    "globals": "^15.9.0",
+    "mocha": "^10.7.3",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.3.0"
+  }
 }
