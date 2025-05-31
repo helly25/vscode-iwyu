@@ -7,7 +7,7 @@
     "Include What You Use",
     "include-what-you-use"
   ],
-  "version": "0.0.18",
+  "version": "0.0.19",
   "publisher": "helly25",
   "license": "Apache-2.0",
   "repository": {
@@ -16,13 +16,14 @@
   },
   "icon": "images/logo.png",
   "engines": {
-    "vscode": "^1.78.0"
+    "vscode": "^1.92.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:cpp"
+    "onLanguage:cpp",
+    "onLanguage:c"
   ],
   "main": "./out/extension.js",
   "contributes": {
