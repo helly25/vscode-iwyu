@@ -170,6 +170,11 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Replace *why* comments with the ones provided by IWYU."
+        },
+        "iwyu.fix.fix_header": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Fix includes in the corresponding header for a given implementation file (e.g. foo.h when fixing foo.cpp)."
         }
       }
     }
