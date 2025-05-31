@@ -3,6 +3,7 @@
 # [0.0.19]
 
 * Added activation support for C language.
+* Added setting `iwyu.fix.fix_header` which fixes includes in the corresponding header for a given implementation file (e.g. foo.h when fixing foo.cpp).
 
 # [0.0.18]
 
