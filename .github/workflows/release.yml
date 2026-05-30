@@ -24,7 +24,7 @@ jobs:
       - name: Package
         run: npm run package -- --out helly25iwyu.vsix
       - name: Publish to VS Code Marketplace
-        run: npx @vscode/vsce publish --packagePath helly25iwyu.vsix
+        run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }} --packagePath helly25iwyu.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
       - name: Attach VSIX to the GitHub Release
