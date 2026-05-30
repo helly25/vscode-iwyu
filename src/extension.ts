@@ -757,7 +757,7 @@ class Extension {
                 const lastLine: number = doc.lineCount - 1;
                 for (let line = lastLine; line > 0 && line > lastLine - 10; line--) {
                     const lineOfText = doc.lineAt(line);
-                    const match = [...lineOfText.text.matchAll(INC_GUARD_ENDIF)] ?? [];
+                    const match = [...lineOfText.text.matchAll(INC_GUARD_ENDIF)];
                     if (match.length === 0) {
                         continue;
                     }
