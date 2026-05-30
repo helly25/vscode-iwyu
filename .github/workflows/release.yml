@@ -1,0 +1,33 @@
+name: Release
+
+# Publishes the extension to the VS Code Marketplace when a GitHub Release is
+# published. The release tag should match the `version` in package.json.
+#
+# Requires a repository secret `VSCE_PAT`: an Azure DevOps Personal Access Token
+# for the `helly25` publisher with the "Marketplace > Manage" scope.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Package
+        run: npm run package -- --out helly25iwyu.vsix
+      - name: Publish to VS Code Marketplace
+        run: npx @vscode/vsce publish --packagePath helly25iwyu.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      - name: Attach VSIX to the GitHub Release
+        run: gh release upload "${{ github.event.release.tag_name }}" helly25iwyu.vsix --clobber
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

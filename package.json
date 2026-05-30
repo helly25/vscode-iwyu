@@ -188,10 +188,13 @@
     "lint": "eslint src",
     "test": "node ./out/test/runTest.js",
     "test:local": "env -u ELECTRON_RUN_AS_NODE -u VSCODE_IPC_HOOK -u VSCODE_PID npm test",
-    "eslint": "eslint"
+    "eslint": "eslint",
+    "package": "vsce package",
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
+    "@vscode/vsce": "^3.9.1",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.7",
     "@types/node": "^22.5.2",
