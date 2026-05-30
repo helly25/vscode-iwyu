@@ -187,6 +187,7 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "node ./out/test/runTest.js",
+    "test:local": "env -u ELECTRON_RUN_AS_NODE -u VSCODE_IPC_HOOK -u VSCODE_PID npm test",
     "eslint": "eslint",
     "package": "vsce package",
     "publish": "vsce publish"

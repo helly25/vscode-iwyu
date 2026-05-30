@@ -176,12 +176,25 @@ class CompileCommandsData {
                 log(ERROR, "Error parsing '" + this.compileCommandsJsonPath + "': " + err);
             }
         }
-        const ignoreRe: string = config.get("fix.ignore_re", "").trim();
-        this.ignoreRe = ignoreRe === "" ? null : new RegExp(ignoreRe);
-        const onlyRe: string = config.get("fix.only_re", "").trim();
-        this.onlyRe = onlyRe === "" ? null : new RegExp(onlyRe);
-        const headerRe: string = config.get("diagnostics.include_guard_files", "[.](h|hh|hpp|hxx)$").trim();
-        this.headerRe = headerRe === "" ? null : new RegExp(headerRe);
+        this.ignoreRe = CompileCommandsData.compileRegExp(config.get("fix.ignore_re", "").trim(), "iwyu.fix.ignore_re");
+        this.onlyRe = CompileCommandsData.compileRegExp(config.get("fix.only_re", "").trim(), "iwyu.fix.only_re");
+        this.headerRe = CompileCommandsData.compileRegExp(config.get("diagnostics.include_guard_files", "[.](h|hh|hpp|hxx)$").trim(), "iwyu.diagnostics.include_guard_files");
+    }
+
+    // Compiles a user provided regular expression, returning null for an empty value
+    // and logging (rather than throwing) when the pattern is invalid, so a broken
+    // setting cannot abort extension activation.
+    private static compileRegExp(pattern: string, setting: string): RegExp | null {
+        if (pattern === "") {
+            return null;
+        }
+        try {
+            return new RegExp(pattern);
+        }
+        catch (err) {
+            log(ERROR, "Ignoring invalid regular expression in `" + setting + "`: " + err);
+            return null;
+        }
     }
 
     compileCommandsJsonPath: string = "";
@@ -391,6 +404,13 @@ class ConfigData {
 
 class Extension {
     constructor(workspaceFolder: string, context: vscode.ExtensionContext) {
+        // Register the commands first, so they remain available even if any of the
+        // (fallible) setup below throws (e.g. bad `compile_commands.json` or a broken
+        // user regex). Otherwise activation aborts before registration and invoking a
+        // command fails with `command 'iwyu.run.one' not found` (issue #26).
+        context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND_ONE, () => { this.iwyuCommandOne(); }));
+        context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND_ALL, () => { this.iwyuCommandAll(); }));
+
         const iwyuDiagnostics = vscode.languages.createDiagnosticCollection("iwyu");
         context.subscriptions.push(iwyuDiagnostics);
         this.configData = new ConfigData(workspaceFolder);
@@ -404,9 +424,6 @@ class Extension {
                 })
             );
         }
-
-        context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND_ONE, () => { this.iwyuCommandOne(); }));
-        context.subscriptions.push(vscode.commands.registerCommand(IWYU_COMMAND_ALL, () => { this.iwyuCommandAll(); }));
     }
 
     private iwyuFix(compileCommand: CompileCommand, iwyuOutput: string) {
@@ -930,7 +947,15 @@ export function activate(context: vscode.ExtensionContext) {
         return;
     }
 
-    new Extension(workspaceFolder, context);
+    try {
+        new Extension(workspaceFolder, context);
+    }
+    catch (err) {
+        // Surface activation failures in the IWYU output channel. Without this the
+        // error only reaches the Extension Host log and users just see the commands
+        // missing (`command 'iwyu.run.one' not found`, issue #26).
+        log(ERROR, "Failed to activate IWYU: " + (err instanceof Error ? err.stack ?? err.message : err));
+    }
 }
 
 export function deactivate() { }
