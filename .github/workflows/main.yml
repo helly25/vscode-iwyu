@@ -4,14 +4,36 @@ on:
   push:
     branches:
       - main
+permissions:
+  contents: read
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.11
       - uses: pre-commit/action@v3.0.1
       - uses: pre-commit-ci/lite-action@v1.0.2
         if: always()
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run compile
+      - run: npm run lint
+      # The integration tests launch a real VS Code, which needs a display on Linux.
+      - run: xvfb-run -a npm test
+        if: runner.os == 'Linux'
+      - run: npm test
+        if: runner.os != 'Linux'
