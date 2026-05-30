@@ -64,6 +64,7 @@ This extension has the following general settings:
   does not result in removing such headers, it merely prevents adding them, so it won't produce diagnostics for such includes.
 - `iwyu.fix_includes.py`: Path to the `fix_includes.py` script (finds the script on path if empty).
 - `iwyu.include-what-you-use`: Path to the `include-what-you-use` executable (finds the executable on path if empty).
+  Supports `${workspaceFolder}`, `${workspaceRoot}` and `${fileWorkspaceFolder}`.
 
 The diagnostics can be further configured:
 
@@ -82,7 +83,7 @@ The `include-what-you-use` tool can be configured with the following settings (n
 - `iwyu.iwyu.keep`: A glob that tells iwyu to always keep these includes. Can be provided multiple times.
 - `iwyu.iwyu.mapping_file`: Mapping file to use. See
    [IWYU Mappings](https://github.com/include-what-you-use/include-what-you-use/blob/master/docs/IWYUMappings.md) for
-   details.
+   details. Supports `${workspaceFolder}`, `${workspaceRoot}` and `${fileWorkspaceFolder}`.
 - `iwyu.iwyu.max_line_length`: Maximum line length for includes.Note that this only affects comments and alignment
    thereof, the maximum line length can still be exceeded with long file names
 - `iwyu.iwyu.no_default_mappings`: Do not add iwyu's default mappings.
