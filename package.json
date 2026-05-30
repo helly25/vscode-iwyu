@@ -100,7 +100,7 @@
         "iwyu.include-what-you-use": {
           "type": "string",
           "default": "include-what-you-use",
-          "description": "Path to the `include-what-you-use` executable."
+          "markdownDescription": "Path to the `include-what-you-use` executable. Supports `${workspaceFolder}`, `${workspaceRoot}` and `${fileWorkspaceFolder}`."
         },
         "iwyu.iwyu.additional_params": {
           "type": "string",
@@ -115,7 +115,7 @@
         "iwyu.iwyu.mapping_file": {
           "type": "string",
           "default": "",
-          "description": "Mapping file to use if any."
+          "markdownDescription": "Mapping file to use if any. Supports `${workspaceFolder}`, `${workspaceRoot}` and `${fileWorkspaceFolder}`."
         },
         "iwyu.iwyu.max_line_length": {
           "type": "integer",

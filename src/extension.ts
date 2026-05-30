@@ -294,11 +294,11 @@ class ConfigData {
     }
 
     replaceWorkspaceVars(input: string): string {
-        input = input.replace("${workspaceRoot}", this.workspacefolder);
-        input = input.replace("${workspaceFolder}", this.workspacefolder);
+        input = input.split("${workspaceRoot}").join(this.workspacefolder);
+        input = input.split("${workspaceFolder}").join(this.workspacefolder);
         const uri = vscode.window.activeTextEditor?.document?.uri;
         const path = uri ? vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath : "";
-        input = input.replace("${fileWorkspaceFolder}", typeof path === "string" ? path : "");
+        input = input.split("${fileWorkspaceFolder}").join(typeof path === "string" ? path : "");
         return input;
     }
 
@@ -504,13 +504,13 @@ class Extension {
 
         const mapping = this.configData.config.get("iwyu.mapping_file", "").trim();
         if (mapping !== "") {
-            args.push("-Xiwyu --mapping_file=" + mapping);
+            args.push("-Xiwyu --mapping_file=" + this.configData.replaceWorkspaceVars(mapping));
         }
         const params = this.configData.config.get("iwyu.additional_params", "");
         if (params !== "") {
             args.push(params);
         }
-        let iwyu = this.configData.config.get("include-what-you-use", "include-what-you-use");
+        let iwyu = this.configData.replaceWorkspaceVars(this.configData.config.get("include-what-you-use", "include-what-you-use"));
         iwyu += " " + args.concat(compileCommand.arguments).join(" ") + " 2>&1";
 
         log(TRACE, "Directory: `" + compileCommand.directory + "`");

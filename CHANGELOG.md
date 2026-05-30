@@ -4,6 +4,7 @@
 
 * Added activation support for C language.
 * Added setting `iwyu.fix.fix_header` which fixes includes in the corresponding header for a given implementation file (e.g. foo.h when fixing foo.cpp).
+* Fixed https://github.com/helly25/vscode-iwyu/issues/32. `${workspaceFolder}`, `${workspaceRoot}` and `${fileWorkspaceFolder}` are now also expanded in the `iwyu.include-what-you-use` and `iwyu.iwyu.mapping_file` settings.
 
 # [0.0.18]
 
