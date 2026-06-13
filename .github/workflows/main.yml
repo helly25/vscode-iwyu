@@ -37,3 +37,33 @@ jobs:
         if: runner.os == 'Linux'
       - run: npm test
         if: runner.os != 'Linux'
+
+  done:
+    needs: [pre-commit, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure every job is wired into this gate
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          # Parse the workflow with a real YAML reader (yq) and fail if any
+          # declared job (other than this gate) is absent from `needs` above, so
+          # a newly added job cannot silently escape the required gate.
+          declared="$(yq '.jobs | keys | .[]' .github/workflows/main.yml |
+            grep -vx done | sort)"
+          wired="$(jq -r 'keys[]' <<<"${NEEDS_JSON}" | sort)"
+          missing="$(comm -23 <(printf '%s\n' "${declared}") <(printf '%s\n' "${wired}"))"
+          if [[ -n "${missing}" ]]; then
+            echo "Jobs declared in the workflow but missing from done.needs:"
+            while read -r job; do
+              echo "  - ${job}"
+              echo "::error title=Gate is missing a job::${job} not in done.needs"
+            done <<<"${missing}"
+            exit 1
+          fi
+          echo "done covers all $(grep -c . <<<"${declared}") workflow jobs."
+      - name: Fail if any dependency did not succeed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
