@@ -1,5 +1,20 @@
 # Change Log
 
+# [0.0.21]
+
+* Updated dependencies to resolve security advisories in build/publish tooling
+  (transitive via `@vscode/vsce`): `form-data` (CRLF injection,
+  [GHSA-hmw2-7cc7-3qxx](https://github.com/advisories/GHSA-hmw2-7cc7-3qxx)),
+  `js-yaml` and `undici`. `npm audit` now reports no vulnerabilities. No changes
+  to the shipped extension behavior.
+
+# [0.0.20]
+
+* Added an optimized extension icon.
+* Fixed VSIX packaging and added tooling to publish releases to the VS Code
+  Marketplace, plus a cross-platform build/test CI matrix.
+* Updated dev dependencies and cleared all `npm audit` advisories.
+
 # [0.0.19]
 
 * Added activation support for C language.
