@@ -1,17 +1,24 @@
 # Change Log
 
-# [0.0.22]
+# [1.0.0]
 
-* **Raised the minimum supported VS Code version to 1.125.0** (was 1.92.0).
-  `@types/vscode` had already moved to 1.125, so the extension was being
-  compiled against APIs newer than the version it claimed to support; the
-  minimum now matches the types. Users on VS Code older than 1.125 should stay
-  on 0.0.21.
-* Updated dev dependencies (`eslint` 10, `@types/node` 26) and removed three
-  unused ones (`@eslint/js`, `globals`, `@types/glob`).
-* Raised the TypeScript `target`/`lib` to ES2022. The code already used ES2022
-  APIs (`Array.prototype.at`) and only compiled because older `@types/node`
-  declared them. No change to the shipped extension behavior.
+First stable release. The `iwyu.*` settings are now considered stable;
+incompatible changes to them will come with a major version bump.
+
+* **Raised the minimum supported VS Code version to 1.125.0** (was 1.92.0). The
+  extension was already being compiled against 1.125 APIs while claiming to
+  support 1.92. Users on older VS Code should stay on 0.0.21.
+* Fixed the declared default of `iwyu.diagnostics.full_line_squiggles`, which
+  was the string `"true"` for a boolean setting. Behavior is unchanged.
+* Updated dependencies to resolve security advisories in build/publish tooling:
+  `brace-expansion`, `fast-uri`, `js-yaml` and `undici`. `npm audit` now reports
+  no vulnerabilities.
+* Fixed the macOS CI job, broken by VS Code renaming its macOS executable
+  (`@vscode/test-electron` 3.x), and moved CI to Node 22.
+* Updated dev dependencies, removed three unused ones (`@eslint/js`, `globals`,
+  `@types/glob`), and raised the TypeScript `target`/`lib` to ES2022.
+
+Apart from the minimum version, no changes to the shipped extension behavior.
 
 # [0.0.21]
 
