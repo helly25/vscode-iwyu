@@ -7,7 +7,7 @@
     "Include What You Use",
     "include-what-you-use"
   ],
-  "version": "0.0.21",
+  "version": "1.0.0",
   "publisher": "helly25",
   "license": "Apache-2.0",
   "repository": {
@@ -57,7 +57,7 @@
         },
         "iwyu.diagnostics.full_line_squiggles": {
           "type": "boolean",
-          "default": "true",
+          "default": true,
           "description": "Whether to underline the whole line with squiggles or only the actual include part."
         },
         "iwyu.diagnostics.include_guard_files": {
