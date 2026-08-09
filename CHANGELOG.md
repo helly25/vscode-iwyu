@@ -1,5 +1,18 @@
 # Change Log
 
+# [0.0.22]
+
+* **Raised the minimum supported VS Code version to 1.125.0** (was 1.92.0).
+  `@types/vscode` had already moved to 1.125, so the extension was being
+  compiled against APIs newer than the version it claimed to support; the
+  minimum now matches the types. Users on VS Code older than 1.125 should stay
+  on 0.0.21.
+* Updated dev dependencies (`eslint` 10, `@types/node` 26) and removed three
+  unused ones (`@eslint/js`, `globals`, `@types/glob`).
+* Raised the TypeScript `target`/`lib` to ES2022. The code already used ES2022
+  APIs (`Array.prototype.at`) and only compiled because older `@types/node`
+  declared them. No change to the shipped extension behavior.
+
 # [0.0.21]
 
 * Updated dependencies to resolve security advisories in build/publish tooling
