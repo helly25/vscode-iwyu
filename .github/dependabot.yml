@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # Dependabot security updates are enabled repo-wide and are unaffected by
+  # this file; these entries add scheduled *version* updates on top, so
+  # dependencies do not drift until an advisory forces a bump.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Everything here is a devDependency, so a single grouped PR keeps the
+      # review load low and CI runs once per batch.
+      dev-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
