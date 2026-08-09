@@ -16,7 +16,7 @@
   },
   "icon": "images/icon.png",
   "engines": {
-    "vscode": "^1.92.0"
+    "vscode": "^1.125.0"
   },
   "categories": [
     "Other"
@@ -193,18 +193,15 @@
     "publish": "vsce publish"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.19.19",
+    "@types/node": "^26.2.0",
     "@types/vscode": "^1.125.0",
     "@typescript-eslint/eslint-plugin": "^8.66.0",
     "@typescript-eslint/parser": "^8.66.0",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.2",
-    "eslint": "^10.8.0",
+    "eslint": "^10.8.1",
     "glob": "^13.0.6",
-    "globals": "^17.9.0",
     "mocha": "^11.8.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.66.0"
