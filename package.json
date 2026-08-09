@@ -204,7 +204,7 @@
     "@vscode/vsce": "^3.9.2",
     "eslint": "^10.8.0",
     "glob": "^13.0.6",
-    "globals": "^15.15.0",
+    "globals": "^17.9.0",
     "mocha": "^11.8.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.66.0"
