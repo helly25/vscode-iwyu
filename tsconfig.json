@@ -8,6 +8,11 @@
     ],
     "sourceMap": true,
     "rootDir": "src",
+    "types": [
+      "node",
+      "mocha",
+      "vscode"
+    ],
     "strict": true,
     "skipLibCheck": true,
     /* enable all strict type-checking options */
