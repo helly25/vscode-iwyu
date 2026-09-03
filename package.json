@@ -203,7 +203,7 @@
     "eslint": "^10.8.1",
     "glob": "^13.0.6",
     "mocha": "^11.8.0",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.66.0"
   },
   "overrides": {
