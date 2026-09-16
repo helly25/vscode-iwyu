@@ -1,5 +1,14 @@
 # Change Log
 
+# [1.0.1]
+
+* Updated dependencies to resolve security advisories in development and
+  publishing tooling, including `fast-uri`, `js-yaml` and `qs`.
+* Updated TypeScript, ESLint, Mocha and related development dependencies.
+* Excluded local Claude settings from the extension package.
+
+No changes to extension behavior or the minimum supported VS Code version.
+
 # [1.0.0]
 
 First stable release. The `iwyu.*` settings are now considered stable;
