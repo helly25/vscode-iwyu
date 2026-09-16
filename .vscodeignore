@@ -4,6 +4,7 @@
 src/**
 out/test/**
 .github/**
+.claude/**
 .trunk/**
 .gitignore
 .yarnrc
