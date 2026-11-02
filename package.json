@@ -208,12 +208,17 @@
     "typescript-eslint": "^8.72.1"
   },
   "overrides": {
+    "@azure/identity": "^4.14.1",
+    "minimatch": "^11.0.3",
+    "mocha": {
+      "glob": "$glob"
+    },
     "serialize-javascript": "^7.1.4",
     "diff": "^8.0.3",
     "fast-uri": "^3.1.7",
     "form-data": "^4.0.6",
     "js-yaml": "^4.3.2",
-    "qs": "^6.16.0",
+    "qs": "^6.17.1",
     "undici": "^7.29.0"
   }
 }
