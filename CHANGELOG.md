@@ -1,6 +1,6 @@
 # Change Log
 
-# [Unreleased]
+# [1.0.2]
 
 * Cleared development and publishing dependency advisories by updating Azure
   Identity and `qs`, overriding `minimatch` to a patched release, and using the
