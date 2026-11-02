@@ -1,5 +1,12 @@
 # Change Log
 
+# [1.0.2]
+
+* Cleared development and publishing dependency advisories by updating Azure
+  Identity and `qs`, overriding `minimatch` to a patched release, and using the
+  project's patched `glob` version for Mocha too.
+* Added VSIX packaging to the cross-platform CI checks.
+
 # [1.0.1]
 
 * Updated dependencies to resolve security advisories in development and
